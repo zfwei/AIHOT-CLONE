@@ -68,7 +68,7 @@ test("market schedules run only twice daily and stay disabled without the litera
   const old = process.env.COLLECT_ENABLED;
   try {
     const schedules = MARKET_SERVER.schedules!.filter((schedule) => schedule.name.startsWith("markets.collect."));
-    assert.equal(schedules.length, 5);
+    assert.equal(schedules.length, 7);
     assert.ok(schedules.every((schedule) => schedule.cron === "0 8,18 * * *"));
     for (const value of ["false", "1", "TRUE"]) {
       process.env.COLLECT_ENABLED = value;

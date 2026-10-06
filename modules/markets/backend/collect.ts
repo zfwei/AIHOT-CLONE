@@ -7,9 +7,11 @@ import { SOURCE_CANDIDATES } from "../sources.ts";
 import { nyfedFeedUrl, parseNyfedJson } from "./nyfed.ts";
 import { FED_H41_URL, parseFedH41 } from "./fed-h41.ts";
 import { mergeMacroObservations } from "./macro.ts";
-import type { MacroObservation, PriceBar, Quote } from "../domain.ts";
+import type { MacroObservation, PriceBar, Quote, Snapshot } from "../domain.ts";
+import { fetchEquities } from "./equities.ts";
 
-export type MarketSource = "treasury" | "japan-mof" | "ecb" | "nyfed" | "fed";
+export type MarketSource = "treasury" | "japan-mof" | "ecb" | "nyfed" | "fed" | "akshare" | "yfinance";
+interface CollectedMarket { quotes: Quote[]; history: PriceBar[]; macro: MacroObservation[]; errors?: { instrumentId: string; message: string }[] }
 
 export function assertCollectionAllowed(source: MarketSource = "treasury") {
   if (!collectionState().enabled) throw new Error("Market collection requires COLLECT_ENABLED=true");
@@ -22,7 +24,8 @@ async function response(url: string, source: string) {
   return res;
 }
 
-async function fetchMarket(source: MarketSource): Promise<{ quotes: Quote[]; history: PriceBar[]; macro: MacroObservation[] }> {
+async function fetchMarket(source: MarketSource): Promise<CollectedMarket> {
+  if (source === "akshare" || source === "yfinance") return fetchEquities(source);
   if (source === "nyfed") {
     const rows = await Promise.all((["sofr", "effr"] as const).map(async (rate) => {
       const res = await response(nyfedFeedUrl(rate), source);
@@ -43,25 +46,34 @@ async function fetchMarket(source: MarketSource): Promise<{ quotes: Quote[]; his
   return { ...collected, macro: [] };
 }
 
+export function mergeMarketData(before: Snapshot, collected: CollectedMarket, source: MarketSource, now = new Date()): Snapshot {
+  const equity = source === "akshare" || source === "yfinance";
+  const accepted = collected.quotes.filter((quote) => !before.quotes.some((old) => old.instrumentId === quote.instrumentId && Date.parse(old.asOf) > Date.parse(quote.asOf)));
+  const refreshed = new Set(accepted.map((quote) => quote.instrumentId));
+  const oldHistory = new Map(before.history.map((bar) => [`${bar.instrumentId}:${bar.date}`, bar]));
+  // Reload each successful equity series together: splits/dividends can change every adjusted close.
+  const history = new Map(before.history.filter((bar) => !equity || !refreshed.has(bar.instrumentId)).map((bar) => [`${bar.instrumentId}:${bar.date}`, bar]));
+  for (const bar of collected.history) {
+    if (equity && !refreshed.has(bar.instrumentId)) continue;
+    const old = oldHistory.get(`${bar.instrumentId}:${bar.date}`);
+    // Preserve the first confirmed availability timestamp when an observation is unchanged.
+    history.set(`${bar.instrumentId}:${bar.date}`, old?.close === bar.close && old.priceBasis === bar.priceBasis && old.sourceUrl === bar.sourceUrl && old.sourceName === bar.sourceName ? old : bar);
+  }
+  const quotes = new Map(before.quotes.map((quote) => [quote.instrumentId, quote]));
+  for (const quote of accepted) {
+    const previous = quotes.get(quote.instrumentId);
+    const observations = [...history.values()].filter((h) => h.instrumentId === quote.instrumentId && h.date < quote.asOf.slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date));
+    const publishedAt = equity
+      ? previous?.asOf === quote.asOf && previous.value === quote.value && previous.previousClose === quote.previousClose && previous.sourceUrl === quote.sourceUrl && previous.sourceName === quote.sourceName ? previous.publishedAt : quote.publishedAt
+      : history.get(`${quote.instrumentId}:${quote.asOf.slice(0, 10)}`)?.publishedAt ?? quote.publishedAt;
+    quotes.set(quote.instrumentId, { ...quote, publishedAt, previousClose: equity ? quote.previousClose : observations.at(-1)?.close ?? null });
+  }
+  return { ...before, asOf: now.toISOString(), quotes: [...quotes.values()], history: [...history.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-10000), macro: mergeMacroObservations(before.macro ?? [], collected.macro) };
+}
+
 export async function collectMarket(source: MarketSource, actor: string, reason: string) {
   assertCollectionAllowed(source);
   const collected = await fetchMarket(source);
-  const now = new Date();
-  const snapshot = await mutateSnapshot((before) => {
-    const history = new Map(before.history.map((bar) => [`${bar.instrumentId}:${bar.date}`, bar]));
-    for (const bar of collected.history) {
-      const old = history.get(`${bar.instrumentId}:${bar.date}`);
-      // Preserve the first confirmed availability timestamp when an observation is unchanged.
-      history.set(`${bar.instrumentId}:${bar.date}`, old?.close === bar.close ? old : bar);
-    }
-    const quotes = new Map(before.quotes.map((quote) => [quote.instrumentId, quote]));
-    for (const quote of collected.quotes) {
-      const previous = quotes.get(quote.instrumentId);
-      if (previous && Date.parse(previous.asOf) > Date.parse(quote.asOf)) continue;
-      const observations = [...history.values()].filter((h) => h.instrumentId === quote.instrumentId && h.date < quote.asOf.slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date));
-      quotes.set(quote.instrumentId, { ...quote, publishedAt: history.get(`${quote.instrumentId}:${quote.asOf.slice(0, 10)}`)?.publishedAt ?? quote.publishedAt, previousClose: observations.at(-1)?.close ?? null });
-    }
-    return { ...before, asOf: now.toISOString(), quotes: [...quotes.values()], history: [...history.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-10000), macro: mergeMacroObservations(before.macro ?? [], collected.macro) };
-  }, actor, reason);
-  return { quotes: collected.quotes.length, macro: collected.macro.length, asOf: snapshot.asOf };
+  const snapshot = await mutateSnapshot((before) => mergeMarketData(before, collected, source), actor, reason);
+  return { quotes: collected.quotes.length, macro: collected.macro.length, asOf: snapshot.asOf, ...(collected.errors?.length ? { errors: collected.errors } : {}) };
 }

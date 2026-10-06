@@ -4,8 +4,14 @@ FROM node:24-trixie-slim AS base
 WORKDIR /app
 # pg_dump for the optional database backups (Debian's client matches the PostgreSQL 17 server in compose).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-client ca-certificates \
+ && apt-get install -y --no-install-recommends postgresql-client ca-certificates python3 python3-venv \
  && rm -rf /var/lib/apt/lists/*
+COPY modules/markets/python/requirements.txt /tmp/market-requirements.txt
+RUN python3 -m venv /opt/market-python \
+ && /opt/market-python/bin/pip install --no-cache-dir -r /tmp/market-requirements.txt \
+ && rm /tmp/market-requirements.txt
+ENV MARKET_PYTHON=/opt/market-python/bin/python
+ENV MARKET_CACHE_DIR=/data/markets-cache
 
 FROM base AS build
 ARG NPM_REGISTRY=

@@ -40,7 +40,19 @@ export const FED_QUEUE = defineQueue<{ actor: string; reason: string }>({
   run: ({ actor, reason }) => collectMarket("fed", actor, reason),
 });
 
-export const MARKET_QUEUES = { treasury: TREASURY_QUEUE, "japan-mof": JAPAN_MOF_QUEUE, ecb: ECB_QUEUE, nyfed: NYFED_QUEUE, fed: FED_QUEUE };
+export const AKSHARE_QUEUE = defineQueue<{ actor: string; reason: string }>({
+  name: "markets.akshare", options: { policy: "singleton", retryLimit: 0, expireInSeconds: 300 },
+  worker: { pollingIntervalSeconds: 5 },
+  run: ({ actor, reason }) => collectMarket("akshare", actor, reason),
+});
+
+export const YFINANCE_QUEUE = defineQueue<{ actor: string; reason: string }>({
+  name: "markets.yfinance", options: { policy: "singleton", retryLimit: 0, expireInSeconds: 300 },
+  worker: { pollingIntervalSeconds: 5 },
+  run: ({ actor, reason }) => collectMarket("yfinance", actor, reason),
+});
+
+export const MARKET_QUEUES = { treasury: TREASURY_QUEUE, "japan-mof": JAPAN_MOF_QUEUE, ecb: ECB_QUEUE, nyfed: NYFED_QUEUE, fed: FED_QUEUE, akshare: AKSHARE_QUEUE, yfinance: YFINANCE_QUEUE };
 
 export const MARKET_SERVER = defineServerModule({
   name: "markets",
@@ -53,7 +65,7 @@ export const MARKET_SERVER = defineServerModule({
     when: () => process.env.COLLECT_ENABLED === "true",
     run: async () => {
       if (process.env.COLLECT_ENABLED !== "true") return { skipped: "collection_disabled" };
-      return enqueueOn(MARKET_QUEUES[source], { actor: "scheduler:markets", reason: "每日官方市场数据更新" }, { singletonKey: source });
+      return enqueueOn(MARKET_QUEUES[source], { actor: "scheduler:markets", reason: "每日市场数据更新" }, { singletonKey: source });
     },
   })), {
     name: "markets.policy-research.daily",

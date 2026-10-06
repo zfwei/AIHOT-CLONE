@@ -56,7 +56,7 @@ export function registerMarketRoutes(app: FastifyInstance) {
     const principal = await admin(req, reply);
     if (!principal) return;
     if (!collectionState().enabled) return reply.code(409).send({ error: "collection_disabled", detail: "来源已确认；请先配置 COLLECT_ENABLED=true 并重启 API 与 worker。" });
-    const parsed = z.object({ reason: reasonSchema, source: z.enum(["treasury", "japan-mof", "ecb", "nyfed", "fed"]).default("treasury") }).strict().safeParse(req.body);
+    const parsed = z.object({ reason: reasonSchema, source: z.enum(["treasury", "japan-mof", "ecb", "nyfed", "fed", "akshare", "yfinance"]).default("treasury") }).strict().safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
     const actor = actorOf(principal);
     const source = parsed.data.source;

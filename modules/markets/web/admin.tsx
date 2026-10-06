@@ -44,7 +44,7 @@ export default function MarketAdmin() {
   };
   const collect = async () => {
     if (!reason.trim()) return setError("采集前请填写本次操作原因。");
-    const result = await run("POST", "/api/admin/markets/collect", { reason: reason.trim(), source }, { success: "官方数据采集任务已提交", label: "market-collect" });
+    const result = await run("POST", "/api/admin/markets/collect", { reason: reason.trim(), source }, { success: "市场数据采集任务已提交", label: "market-collect" });
     if (result) setNotice("采集任务已提交，尚不代表采集成功。请在运行记录查看完成状态，再到公开页面核对观测日期与原始来源。");
   };
   const research = async () => {
@@ -55,7 +55,7 @@ export default function MarketAdmin() {
   };
   const hasData = data.snapshot.quotes.length + data.snapshot.evidence.length + data.snapshot.history.length + data.snapshot.ideas.length + (data.snapshot.macro?.length ?? 0) > 0;
   return <AdminPage title="市场数据" subtitle="管理公开研究快照与来源状态。个人持仓保存在读者浏览器中，不进入此后台。" actions={<Link to="/markets" className={buttonClass}>打开市场总览 →</Link>}>
-    <div className="mb-5 grid gap-3 sm:grid-cols-3">{[{ label: "最新快照", value: hasData ? dateTime(data.snapshot.asOf) : "尚未发布" }, { label: "有效接入方式", value: "已核验 JSON / 官方日频数据" }, { label: "采集安全阀", value: data.collection.enabled ? "已启用" : "已关闭" }].map((item) => <div key={item.label} className="rounded-card border border-line bg-surface p-4"><p className="text-xs text-ink-3">{item.label}</p><p className="mt-2 text-sm font-semibold text-ink">{item.value}</p></div>)}</div>
+    <div className="mb-5 grid gap-3 sm:grid-cols-3">{[{ label: "最新快照", value: hasData ? dateTime(data.snapshot.asOf) : "尚未发布" }, { label: "有效接入方式", value: "已核验 JSON / 宏观与行情日线" }, { label: "采集安全阀", value: data.collection.enabled ? "已启用" : "已关闭" }].map((item) => <div key={item.label} className="rounded-card border border-line bg-surface p-4"><p className="text-xs text-ink-3">{item.label}</p><p className="mt-2 text-sm font-semibold text-ink">{item.value}</p></div>)}</div>
     <Panel title="导入已核验快照" aside="替换当前公开快照">
       <div className="space-y-4 p-4"><p className="text-sm leading-relaxed text-ink-3">所有数值都需要原始来源、观测时间与可用时间。请先预览条数，再发布；后端会校验证券、单位、时序和证据字段。不在这里输入个人数量、成本或密钥。</p>
         <label className="block text-sm text-ink-2">读取本地 JSON 文件<input type="file" accept="application/json,.json" className="mt-2 block w-full min-w-0 text-sm text-ink-3 file:mr-3 file:min-h-11 file:rounded-control file:border file:border-line-strong file:bg-surface file:px-3 file:text-ink-2" onChange={async (e) => {
@@ -71,11 +71,11 @@ export default function MarketAdmin() {
         {preview && <div className="rounded-card border border-accent/30 bg-accent-softer p-4"><p className="text-sm font-semibold text-ink">准备发布 · {dateTime(preview.asOf)}</p><dl className="my-4 grid grid-cols-2 gap-3 sm:grid-cols-6">{[{ label: "行情", count: preview.quotes.length }, { label: "风险证据", count: preview.evidence.length }, { label: "判定规则", count: preview.rules.length }, { label: "日线记录", count: preview.history.length }, { label: "交易研究", count: preview.ideas.length }, { label: "宏观观测", count: preview.macro?.length ?? 0 }].map((item) => <div key={item.label}><dt className="text-xs text-ink-3">{item.label}</dt><dd className="mono mt-1 text-lg font-semibold text-ink">{item.count}</dd></div>)}</dl><p className="mb-3 text-xs leading-relaxed text-ink-3">这是完整替换。没有出现在新快照中的旧行情、宏观观测、证据、规则与研究将不再公开显示；应先确认所需记录已包含。格式通过不代表来源真实性已自动核验。</p><button type="button" onClick={publish} disabled={busy || !reason.trim()} className={primaryClass}>{busy ? "发布中…" : "发布已核验快照"}</button></div>}
       </div>
     </Panel>
-    <Panel title="官方数据采集" className="mt-5" aside="国债曲线 / 参考利率 / 周频余额"><div className="space-y-3 p-4">
-      <p className="text-sm leading-relaxed text-ink-3">读取官方国债收益率、参考利率和央行周频余额。观测日与本次确认可用时间分别保存；参考利率不是实时融资报价，周频余额不是每日新增。</p>
-      <label className="block max-w-md text-sm text-ink-2">采集来源<select value={source} onChange={(e) => setSource(e.target.value)} className={`${inputClass} mt-1`}><option value="treasury">美国财政部 · 2 / 5 / 10 / 30 年</option><option value="japan-mof">日本财务省 · 10 年</option><option value="ecb">欧洲央行 · AAA 10 年即期曲线（仅宏观）</option><option value="nyfed">纽约联储 · SOFR / EFFR 参考利率</option><option value="fed">美联储 · H.4.1 周频余额</option></select></label>
+    <Panel title="市场数据采集" className="mt-5" aside="免费股票日线 / 国债曲线 / 宏观数据"><div className="space-y-3 p-4">
+      <p className="text-sm leading-relaxed text-ink-3">读取股票与指数日线、官方国债收益率、参考利率和央行周频余额。观测日与本次确认可用时间分别保存；免费行情以已完成日线为准，参考利率不是实时融资报价。</p>
+      <label className="block max-w-md text-sm text-ink-2">采集来源<select value={source} onChange={(e) => setSource(e.target.value)} className={`${inputClass} mt-1`}><option value="treasury">美国财政部 · 2 / 5 / 10 / 30 年</option><option value="japan-mof">日本财务省 · 10 年</option><option value="ecb">欧洲央行 · AAA 10 年即期曲线（仅宏观）</option><option value="nyfed">纽约联储 · SOFR / EFFR 参考利率</option><option value="fed">美联储 · H.4.1 周频余额</option><option value="akshare">AKShare · A股与指数免费日线</option><option value="yfinance">yfinance · 美股与指数免费日线</option></select></label>
       <button type="button" onClick={collect} disabled={busy || !data.collection.enabled || !data.sources.some((s) => s.id === source && s.status === "approved" && s.integration === "ready") || !reason.trim()} className={buttonClass}>{busy ? "处理中…" : "采集一次并发布"}</button>
-      <p className="text-xs text-ink-3">{!data.collection.enabled ? "采集阀已关闭；部署时启用后可操作。" : !reason.trim() ? "请先在上方填写操作原因。" : "会请求所选官方数据，并记录操作审计。"}</p>
+      <p className="text-xs text-ink-3">{!data.collection.enabled ? "采集阀已关闭；部署时启用后可操作。" : !reason.trim() ? "请先在上方填写操作原因。" : "会请求所选来源的数据，并记录操作审计。"}</p>
     </div></Panel>
     <Panel title="生成政策情景研究" className="mt-5" aside="仅基于已发布精选"><div className="space-y-3 p-4">
       <p className="text-sm leading-relaxed text-ink-3">模型引用已发布资料摘录，基于已发布精选生成本站的政策情景假设、研究验证条件与复核日期。摘录来自本站标题或摘要，事实请核对官方原文。无行情时只做政策条件推演，不生成目标价、买卖点或执行推荐。</p>
