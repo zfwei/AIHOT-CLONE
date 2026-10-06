@@ -15,6 +15,9 @@ export interface SourceCandidate {
 export const INSTRUMENTS: Instrument[] = [
   { id: "cn-sse-composite", name: "上证综指", market: "a-shares", currency: "CNY", kind: "index", country: "CN" },
   { id: "cn-csi300", name: "沪深300", market: "a-shares", currency: "CNY", kind: "index", country: "CN" },
+  { id: "hk-hsi", name: "恒生指数", market: "hk-stocks", currency: "HKD", kind: "index", country: "HK" },
+  { id: "kr-kospi", name: "韩国综合指数 · KOSPI", market: "kr-stocks", currency: "KRW", kind: "index", country: "KR" },
+  { id: "jp-nikkei225", name: "日经225", market: "jp-stocks", currency: "JPY", kind: "index", country: "JP" },
   { id: "us-sp500", name: "标普500", market: "us-stocks", currency: "USD", kind: "index", country: "US" },
   { id: "us-nasdaq100", name: "纳斯达克100", market: "us-stocks", currency: "USD", kind: "index", country: "US" },
   { id: "aapl", name: "Apple · AAPL", market: "us-stocks", currency: "USD", kind: "stock", country: "US" },
@@ -28,7 +31,7 @@ export const INSTRUMENTS: Instrument[] = [
 
 export const SOURCE_CANDIDATES: SourceCandidate[] = [
   { id: "akshare", name: "AKShare · A股日线", url: "https://akshare.akfamily.xyz/", coverage: "上证综指、沪深300与已配置A股个股", frequency: "已完成交易日日线", access: "免费开源采集工具；已实现日线适配器", status: "approved", integration: "ready", note: "保留每条数据的底层来源与观测日。AKShare开源许可不等于底层行情的公开再分发授权；实际覆盖以已发布快照为准。" },
-  { id: "yfinance", name: "yfinance · 美股日线", url: "https://github.com/ranaroussi/yfinance", coverage: "标普500、纳斯达克100与已配置美股个股", frequency: "已完成交易日日线", access: "免费研究工具，读取Yahoo Finance日线", status: "approved", integration: "ready", note: "用于个人研究；Yahoo数据使用权以其条款为准。非实时交易报价，实际覆盖与更新时间以已发布快照为准。" },
+  { id: "yfinance", name: "yfinance · 全球股票与指数日线", url: "https://github.com/ranaroussi/yfinance", coverage: "恒生指数、韩国综合指数、日经225、标普500、纳斯达克100与已配置美股个股", frequency: "已完成交易日日线", access: "免费研究工具，读取Yahoo Finance日线", status: "approved", integration: "ready", note: "用于个人研究；Yahoo数据使用权以其条款为准。非实时交易报价，实际覆盖与更新时间以已发布快照为准。" },
   { id: "treasury", name: "美国财政部", url: "https://home.treasury.gov/treasury-daily-interest-rate-xml-feed", coverage: "美国国债固定期限收益率", frequency: "营业日日频", access: "官方 XML；已实现采集适配器", status: "approved", integration: "ready", note: "固定期限曲线估计值，不是单只债券可成交价格；来源已确认；打开运行配置及采集阀后才联网。" },
   { id: "nyfed", name: "纽约联储", url: "https://markets.newyorkfed.org/static/docs/markets-api.html", coverage: "SOFR、EFFR 参考利率", frequency: "营业日日频", access: "官方 API；已接入最近五次观察", status: "approved", integration: "ready", note: "保留参考利率条款与规定的免责声明；不是实时融资报价；其他市场操作暂未覆盖。" },
   { id: "fed", name: "美联储", url: "https://www.federalreserve.gov/releases/h41/", coverage: "H.4.1 总资产与准备金周三余额", frequency: "周频", access: "官方 H.4.1 表；已接入", status: "approved", integration: "ready", note: "单位百万美元；提取周三余额，不是周平均或每日新增；不经 FRED 转发。" },

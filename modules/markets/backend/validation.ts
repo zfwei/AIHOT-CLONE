@@ -4,7 +4,7 @@ import { INSTRUMENTS } from "../sources.ts";
 
 const text = z.string().trim().min(1).max(500);
 const id = z.string().regex(/^[a-z0-9][a-z0-9._-]{0,79}$/);
-const market = z.enum(["a-shares", "us-stocks", "us-treasury", "global-bonds"]);
+const market = z.enum(["a-shares", "us-stocks", "hk-stocks", "kr-stocks", "jp-stocks", "us-treasury", "global-bonds"]);
 const timestamp = z.iso.datetime({ offset: true });
 const url = z.url().max(2000).refine((value) => { const u = new URL(value); return ["https:", "http:"].includes(u.protocol) && !u.username && !u.password; }, "Evidence must use an HTTP(S) URL without credentials");
 const provenance = { sourceName: text, sourceUrl: url };

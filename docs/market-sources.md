@@ -4,9 +4,9 @@ AIQUANT 的新闻、利率与宏观数据使用已由站点所有者确认的官
 
 ## 已配置的官方新闻
 
-`industry/sources.json` 配置以下六个官方新闻入口，供现有采集、筛选及归组流程使用。2026-10-06 已读取端点并完成首次采集，共 91 篇；条目数量是验证当时的结果，不代表持续可用性保证。
+`industry/sources.json` 配置以下十个官方新闻入口，供现有采集、筛选及归组流程使用。前六项在 2026-10-06 首次采集共 91 篇；新增亚洲四项同日首次入库 66 篇（香港证监会 7、日本交易所 13、韩国金融委员会 16、韩国央行 30）。下表条目数量是验证当时的结果，不代表持续可用性保证。
 
-| 信源 | RSS | 验证时条目数 | 内容 |
+| 信源 | 入口 | 验证时条目数 | 内容 |
 | --- | --- | ---: | --- |
 | 美联储 | [货币政策](https://www.federalreserve.gov/feeds/press_monetary.xml) | 15 | 政策决定及相关公告 |
 | 美联储 | [演讲与证词](https://www.federalreserve.gov/feeds/speeches_and_testimony.xml) | 15 | 官员公开讲话与证词 |
@@ -14,10 +14,16 @@ AIQUANT 的新闻、利率与宏观数据使用已由站点所有者确认的官
 | 美国 SEC | [监管公告](https://www.sec.gov/news/pressreleases.rss) | 25 | 监管、执法及机构新闻 |
 | 中国人民银行 | [官方 RSS](https://www.pbc.gov.cn/goutongjiaoliu/113456/2986536/index.html) | 6 | 政策与新闻发布；官网 RSS 链接补全 HTTPS，详情页补全截断标题 |
 | 上海证券交易所 | [要闻列表](https://www.sse.com.cn/aboutus/mediacenter/hotandd/) | 15 | 交易所政策与市场动态；按官方列表日期收录 |
+| 香港证监会 SFC | [新闻 RSS](https://www.sfc.hk/en/RSS-Feeds/Press-releases) | 7 | 香港证券监管与上市安排；将 RSS 的 JavaScript 页面链接映射为同机构公开正文接口 |
+| 日本交易所集团 JPX | [市场新闻 RSS](https://www.jpx.co.jp/english/rss/markets_news.xml) | 19，允许 13 | 仅接收 `/english/news/` 新闻详情，排除共享上市列表和其他导航链接 |
+| 韩国金融委员会 FSC | [政策公告列表](https://www.fsc.go.kr/eng/pr010101?srchCtgry=1) | 20 | 证券政策、并购规则与金融政策；保留公告日期，按内容分类 |
+| 韩国央行 BOK | [新闻 RSS](https://www.bok.or.kr/eng/bbs/E0000634/news.rss?menuNo=400069) | 100 | 利率、外储及经济统计等宏观补充，不当作韩股新闻填充 |
 
 入口来自[美联储 RSS 目录](https://www.federalreserve.gov/feeds/feeds.htm)、[欧洲央行 RSS 目录](https://www.ecb.europa.eu/home/html/rss.en.html)及 [SEC 新闻页](https://www.sec.gov/newsroom/press-releases)。美联储目录中的 `press_all.xml` 本次读取返回 404，因此没有配置。
 
-来源设为 T1，前四项每 60 分钟采集，人民银行与上交所每 120 分钟采集；`site_fulltext` 与 `syndicate_fulltext` 均关闭，只公开摘要与原文链接。两个美联储频道共用 `owner_entity_id: federal-reserve`，不会当成两个独立机构计算热度。来源的 `enabled: true` 不会绕过总开关。示例配置与测试保持关闭；本机运行环境经站长确认开启 `COLLECT_ENABLED=true`。模型配置缺失时保留资料待处理，不消费分析重试次数，也不将未筛选资料冒充精选。
+来源设为 T1，前四项每 60 分钟采集，其余来源每 120 分钟采集；`site_fulltext` 与 `syndicate_fulltext` 均关闭，只公开摘要与原文链接。两个美联储频道共用 `owner_entity_id: federal-reserve`，不会当成两个独立机构计算热度。来源的 `enabled: true` 不会绕过总开关。示例配置与测试保持关闭；本机运行环境经站长确认开启 `COLLECT_ENABLED=true`。模型配置缺失时保留资料待处理，不消费分析重试次数，也不将未筛选资料冒充精选。
+
+亚洲来源目录与使用说明：[SFC RSS](https://www.sfc.hk/en/RSS-Feeds)及[链接与版权政策](https://www.sfc.hk/en/Quick-links/Others/Hyperlink-policy)、[JPX RSS](https://www.jpx.co.jp/english/rss/index.html)及[使用条款](https://www.jpx.co.jp/english/term-of-use/index.html)、[FSC 版权政策](https://www.fsc.go.kr/ut020104)。目前用于本地个人研究、摘要与原文链接；JPX 商业采集或二次使用需另行许可，FSC 第三方材料不在其自有政府作品的开放范围内。香港选用 SFC；HKEX RSS 混有年份档案，其网站条款另有限制程序化访问和派生数据库，未配置为采集源。KRX 英文公告使用 JavaScript 分片详情页，现有通用正文提取不能可靠读取，暂以 FSC 提供韩国市场官方政策资讯。
 
 部署时 `scripts/seed.ts` 只新增缺失的来源，不覆盖后台已编辑的来源。更换行业的已有数据库需在后台停用或移除原行业来源；替换 JSON 文件不会删除数据库里的旧来源。
 
@@ -44,22 +50,27 @@ AIQUANT 的新闻、利率与宏观数据使用已由站点所有者确认的官
 
 ## 股票与指数日线：本地个人研究
 
-股票采集通过 worker 启动 Python 子进程，使用 [AKShare 股票文档](https://akshare.akfamily.xyz/data/stock/stock.html)及 [yfinance 官方项目](https://github.com/ranaroussi/yfinance)所述接口；Python 环境配置见[部署说明](deploy.md#股票日线的-python-环境)。范围固定为以下八个标的，并非全市场覆盖。
+股票采集通过 worker 启动 Python 子进程，使用 [AKShare 股票文档](https://akshare.akfamily.xyz/data/stock/stock.html)及 [yfinance 官方项目](https://github.com/ranaroussi/yfinance)所述接口；Python 环境配置见[部署说明](deploy.md#股票日线的-python-环境)。范围固定为以下十一个标的，并非全市场覆盖。
 
 | 采集工具 | 市场 | 标的 |
 | --- | --- | --- |
 | AKShare | A 股，3 个 | 上证综指、沪深 300、贵州茅台（600519） |
 | yfinance / Yahoo Finance | 美股，5 个 | 标普 500（`^GSPC`）、纳斯达克 100（`^NDX`）、AAPL、MSFT、NVDA |
+| yfinance / Yahoo Finance | 港股，1 个 | 恒生指数（`^HSI`） |
+| yfinance / Yahoo Finance | 韩股，1 个 | KOSPI（`^KS11`） |
+| yfinance / Yahoo Finance | 日股，1 个 | 日经 225（`^N225`） |
 
 展示的最新行情及前收盘价采用未复权日线收盘值；用于均线观察的股票历史采用复权价格：AKShare 使用前复权 `qfq`，yfinance 读取 `auto_adjust=False` 返回的 `Adj Close`。指数历史保持未复权并标记 `priceBasis: "unadjusted"`。两种口径用途不同，不能把复权历史值当成当日可成交报价。每次请求最近一年，并保留每个标的最多 260 个交易日；成功取得一个标的的新历史后，整体替换该标的历史窗口，避免公司行动导致新旧复权基准混在同一序列中。至少 61 个有效观测值才进入现有 20/60 均线观察。
 
 只有当地市场已收盘日期的数据可以入库，不把当天盘中变化当成最终日线。每条记录保留来源链接、观察日期和采集时刻；采集时刻是保守可用时点，标记 `availabilityBasis: "retrieved"`，不反推为历史上当时已知数据。每日 08:00、18:00 是北京时间的采集计划，不代表固定延迟或实时行情承诺。
 
+交易日期按标的所在市场时区与交易日历核对。港股使用 `XHKG` 日历并在日历收盘时点后预留 10 分钟竞价上界；日股使用 `JPX`，2024-11-05 起收盘为东京时间 15:30。韩国 `XKRX` 日历的特殊日期需维护：已补 2025-11-13 延至 16:30 收盘，以及 2026-06-03、07-17 休市；2026-11-19 考试日的交易时段尚未核实，遇到该日数据明确失败，不猜收盘时间。韩国超出 2026 年的采集需先核实日历例外。相关官方或券商公告依据保存在 Python 采集器注释中。
+
 这两项接入不需要本项目配置付费供应商 Key，但不承诺免费无限请求、固定服务等级或持续可用。上游限流、网络故障或接口变更可能导致本次更新失败；已有数据的来源和时间仍须核对，缺失数据不补零。
 
 使用范围遵循来源条款：[AKShare 项目概览](https://akshare.akfamily.xyz/introduction.html)说明接口及相关数据用于学术研究；[yfinance 官方 README](https://github.com/ranaroussi/yfinance#important)说明它并非 Yahoo 官方认可的产品，并提醒 Yahoo Finance API 仅供个人使用。开源工具的代码许可不等于所取金融数据的许可。本次接入限本地个人研究，尚未取得正式的商业、公开网站展示或 API/RSS/MCP 再分发授权；对外运营前需另行确认适用许可与供应商方案。
 
-2026-10-06 本机实测：8 个股票与指数标的均采集成功，A 股最近交易日为 2026-09-30，美股为 2026-10-05；每个标的分别有 241 / 251 条日线，均线观察可计算。A 股统一使用 AKShare 新浪日线入口；东方财富个股入口在本机连接失败，因此未作为当前采集入口。此记录只说明当次结果，不保证上游持续可用。
+2026-10-06 本机实测：11 个股票与指数标的均采集成功，其中 yfinance 覆盖 8 个，包含新增恒生、KOSPI 与日经 225 指数。合并官方债券行情后，市场快照共 17 条行情、2,728 条历史记录（含股票、指数和国债）。原有 A 股最近交易日为 2026-09-30，美股为 2026-10-05；每个标的均有足够历史进入均线观察。A 股统一使用 AKShare 新浪日线入口；东方财富个股入口在本机连接失败，因此未作为当前采集入口。此记录只说明当次结果，不保证上游持续可用。
 
 ## 其他来源边界
 

@@ -1,4 +1,4 @@
-export type MarketId = "a-shares" | "us-stocks" | "us-treasury" | "global-bonds";
+export type MarketId = "a-shares" | "hk-stocks" | "kr-stocks" | "jp-stocks" | "us-stocks" | "us-treasury" | "global-bonds";
 export type RiskFactor = "valuation" | "crowding" | "liquidity" | "speculation";
 export type AssessmentState = "triggered" | "not_triggered" | "unknown" | "not_applicable";
 

@@ -44,6 +44,21 @@ test("schema binds exact quotations and securities to cited inputs and rejects u
   assert.equal(schema.safeParse({ ideas: [], extra: true }).success, false);
 });
 
+test("Asian research keeps Hong Kong, Korean and Japanese market jurisdiction separate", () => {
+  for (const [category, instrumentId, official] of [
+    ["hk-stocks", "hk-hsi", "hkma.gov.hk"],
+    ["kr-stocks", "kr-kospi", "bok.or.kr"],
+    ["jp-stocks", "jp-nikkei225", "boj.or.jp"],
+  ]) {
+    const inputs = prepareResearchInputs([item({ category, links: { aihot: "", original: `https://${official}/policy` } })], NOW);
+    assert.deepEqual(inputs[0]!.instrumentIds, [instrumentId]);
+    assert.deepEqual(prepareResearchInputs([item({ links: { aihot: "", original: `https://${official}/policy` } })], NOW)[0]!.instrumentIds, [instrumentId]);
+    assert.deepEqual(prepareResearchInputs([item({ links: { aihot: "", original: `https://${official}.example.test/policy` } })], NOW), []);
+    const generated = buildResearchIdeas({ ideas: [{ ...IDEA, instrumentId }] }, inputs, NOW);
+    assert.equal(generated[0]!.market, category);
+  }
+});
+
 test("schema allows future conditional reasoning, rejects figures, transactions and current factual assertions", () => {
   const schema = researchSchema(INPUTS);
   for (const text of [

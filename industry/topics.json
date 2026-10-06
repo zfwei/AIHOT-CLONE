@@ -120,6 +120,33 @@
       "definition": "跟踪美股，以带时间和来源的证据进行研究。"
     },
     {
+      "slug": "hk-stocks",
+      "name": "港股",
+      "group": "field",
+      "tags": [
+        "港股"
+      ],
+      "definition": "港股上市公司、市场行情、上市制度与风险研究。"
+    },
+    {
+      "slug": "kr-stocks",
+      "name": "韩股",
+      "group": "field",
+      "tags": [
+        "韩股"
+      ],
+      "definition": "韩股上市公司、市场行情、上市制度与风险研究。"
+    },
+    {
+      "slug": "jp-stocks",
+      "name": "日股",
+      "group": "field",
+      "tags": [
+        "日股"
+      ],
+      "definition": "日股上市公司、市场行情、上市制度与风险研究。"
+    },
+    {
       "slug": "us-treasury",
       "name": "美债",
       "group": "field",

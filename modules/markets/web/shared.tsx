@@ -7,6 +7,9 @@ import { AutoRefresh } from "@aihot/web/components/ui/AutoRefresh";
 
 export const MARKETS: Array<{ id: MarketId; label: string; short: string; category: string; note: string }> = [
   { id: "a-shares", label: "A 股", short: "CN EQUITY", category: "a-shares", note: "中国内地股票 · CNY" },
+  { id: "hk-stocks", label: "港股", short: "HK EQUITY", category: "hk-stocks", note: "恒生指数 · HKD" },
+  { id: "kr-stocks", label: "韩股", short: "KR EQUITY", category: "kr-stocks", note: "韩国综合指数 · KRW" },
+  { id: "jp-stocks", label: "日股", short: "JP EQUITY", category: "jp-stocks", note: "日经225 · JPY" },
   { id: "us-stocks", label: "美股", short: "US EQUITY", category: "us-stocks", note: "美国股票 · USD" },
   { id: "us-treasury", label: "美债", short: "US TREASURY", category: "us-treasury", note: "美国国债 · 名义常期限收益率" },
   { id: "global-bonds", label: "全球国债", short: "SOVEREIGN", category: "global-bonds", note: "分国家观察 · 收益率不可混算" },

@@ -1,13 +1,13 @@
 # AIQUANT 市场研究
 
-首版采用日频／延迟数据，覆盖 A 股、美股、美债、全球国债、宏观政策、交易观察和交易推荐七个栏目。行情、新闻与研究结论都必须有真实来源。来源获确认不等于适配器已经接通；数据缺失时页面明确显示待接入，不使用模拟行情填充。
+首版采用日频／延迟数据，覆盖 A 股、港股、韩股、日股、美股、美债、全球国债、宏观政策、交易观察和交易推荐十个栏目。行情、新闻与研究结论都必须有真实来源。来源获确认不等于适配器已经接通；数据缺失时页面明确显示待接入，不使用模拟行情填充。
 
 ## 入口与数据流
 
 - `/markets`：观察清单、美国国债期限结构、宏观指标、四因子风险矩阵与证据。
 - `/markets/portfolio`：个人多头股票持仓、分币种估值、集中度与风险预算。数量和成本只在浏览器内处理，显式保存后留在该浏览器；不会发给后端或模型。支持删除、清空与导出，不作汇率换算。
 - `/markets/trades`：带条件、失效点与期限的研究，以及价格均线观察。没有来源数据时不生成推荐。
-- `/admin/markets`：管理员导入核验过的 JSON 快照、预览后发布，或选择美国财政部／日本财务省／ECB／纽约联储／美联储 H.4.1 发起采集任务。人工发布是完整替换；先保留需要继续公开的旧记录。采集器按标的、来源与观测日期合并，不覆盖其他来源。
+- `/admin/markets`：管理员导入核验过的 JSON 快照、预览后发布，或选择美国财政部／日本财务省／ECB／纽约联储／美联储 H.4.1／AKShare／yfinance 发起采集任务。人工发布是完整替换；先保留需要继续公开的旧记录。采集器按标的、来源与观测日期合并，不覆盖其他来源。
 - `/api/v1/markets`：匿名只读快照，经过 `packages/backend/src/publication/module-data.ts` 统一公开读取层。
 
 站点声明在 `site/modules/`，实现位于 `modules/markets/`。公开页面只经 HTTP 读取 API，不直接连接数据库；打开页面不会抓取行情或调用模型。管理员写入有会话、CSRF、大小限制、严格校验和审计。
@@ -44,9 +44,9 @@
 
 快照字段见 `modules/markets/domain.ts`，严格校验见 `backend/validation.ts`。导入字段为 `{ schemaVersion: 1, asOf, quotes, evidence, rules, history, ideas, macro }`。所有数组允许为空；已有版本 1 快照缺少 `macro` 时，公开读取返回空数组而不重写原始存储。证券代码必须属于 `sources.ts` 中的目录；个人持仓和密钥不能写入公开快照。发布接口需要 `{ snapshot, reason }`，`reason` 是人工核验说明。
 
-官方采集仅在 API 和 worker 都配置 `COLLECT_ENABLED=true` 时可运行。开发与测试保持关闭，模型调用和推送受独立开关约束。后台按钮发起一次队列任务，提交成功不等于采集成功；需核对任务日志和快照。`POST /api/admin/markets/collect` 接受 `reason` 及可选 `source`：`treasury`（默认）、`japan-mof`、`ecb`、`nyfed` 或 `fed`。
+官方采集仅在 API 和 worker 都配置 `COLLECT_ENABLED=true` 时可运行。开发与测试保持关闭，模型调用和推送受独立开关约束。后台按钮发起一次队列任务，提交成功不等于采集成功；需核对任务日志和快照。`POST /api/admin/markets/collect` 接受 `reason` 及可选 `source`：`treasury`（默认）、`japan-mof`、`ecb`、`nyfed`、`fed`、`akshare` 或 `yfinance`。
 
-`MARKET_SERVER.schedules` 为五个已接入来源分别注册 `markets.collect.<source>`，每天上海时间 08:00、18:00 入队一次。仅字面值 `COLLECT_ENABLED=true` 启用；启动时未启用则不注册，运行时也再次检查开关。错过计划按既有调度器的 `missed: once` 处理。任务经同名来源队列与 worker 执行，保留任务记录和快照审计；刷新时间不是官方数据发布时间。其他官方新闻订阅使用原有 worker 采集机制。
+`MARKET_SERVER.schedules` 为七个已接入来源分别注册 `markets.collect.<source>`，每天上海时间 08:00、18:00 入队一次。仅字面值 `COLLECT_ENABLED=true` 启用；启动时未启用则不注册，运行时也再次检查开关。错过计划按既有调度器的 `missed: once` 处理。任务经同名来源队列与 worker 执行，保留任务记录和快照审计；刷新时间不是官方数据发布时间。其他官方新闻订阅使用原有 worker 采集机制。
 
 政策情景研究在上海时间 18:15 入队，仅字面值 `MODEL_CALLS_ENABLED=true` 启用，也可在后台通过 `POST /api/admin/markets/research` 提交 `{ reason }` 发起。生成使用现有摘要模型配置、付费回执与预算熔断；页面读取不调用模型。发布与回执完成同事务提交，保留人工研究。
 

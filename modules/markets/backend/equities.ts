@@ -7,7 +7,7 @@ import { emptySnapshot, parseSnapshot } from "./validation.ts";
 export type EquitySource = "akshare" | "yfinance";
 const instruments: Record<EquitySource, string[]> = {
   akshare: ["cn-sse-composite", "cn-csi300", "600519.sh"],
-  yfinance: ["us-sp500", "us-nasdaq100", "aapl", "msft", "nvda"],
+  yfinance: ["us-sp500", "us-nasdaq100", "aapl", "msft", "nvda", "hk-hsi", "kr-kospi", "jp-nikkei225"],
 };
 const resultSchema = z.object({ quotes: z.array(z.unknown()), history: z.array(z.unknown()), errors: z.array(z.object({ instrumentId: z.string(), message: z.string() }).strict()) }).strict();
 

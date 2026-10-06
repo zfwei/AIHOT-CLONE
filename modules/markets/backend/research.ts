@@ -23,7 +23,7 @@ const STOCK_ALIASES: Record<string, RegExp> = {
   nvda: /\b(?:NVDA|NVIDIA)\b|英伟达/i,
   "600519.sh": /600519|贵州茅台/,
 };
-const FINANCIAL = new Set(["a-shares", "us-stocks", "us-treasury", "global-bonds", "macro", "trade-watch", "trade-ideas"]);
+const FINANCIAL = new Set(["a-shares", "us-stocks", "hk-stocks", "kr-stocks", "jp-stocks", "us-treasury", "global-bonds", "macro", "trade-watch", "trade-ideas"]);
 
 /** Broad instruments are explicitly our policy-observation scope, never an attributed official recommendation. */
 export function prepareResearchInputs(items: V1ItemPayload[], now = new Date()): ResearchInput[] {
@@ -39,6 +39,9 @@ export function prepareResearchInputs(items: V1ItemPayload[], now = new Date()):
     const cnPolicy = ["pbc.gov.cn", "sse.com.cn", "szse.cn"].includes(host);
     if (item.category === "a-shares" || (item.category === "macro" && cnPolicy)) ids.add("cn-csi300");
     if (item.category === "us-stocks" || (item.category === "macro" && usPolicy)) ids.add("us-sp500");
+    if (item.category === "hk-stocks" || (item.category === "macro" && host === "hkma.gov.hk")) ids.add("hk-hsi");
+    if (item.category === "kr-stocks" || (item.category === "macro" && host === "bok.or.kr")) ids.add("kr-kospi");
+    if (item.category === "jp-stocks" || (item.category === "macro" && host === "boj.or.jp")) ids.add("jp-nikkei225");
     if (item.category === "us-treasury" || (item.category === "macro" && usPolicy)) ids.add("us-treasury-2y");
     for (const [id, aliases] of Object.entries(STOCK_ALIASES)) if (aliases.test(body)) ids.add(id);
     if (!ids.size) return [];

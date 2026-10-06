@@ -25,7 +25,7 @@ function BudgetCalculator() {
     <form onSubmit={submit} onChange={() => setResult(null)} className="p-4">
       <p className="mb-4 text-sm leading-relaxed text-ink-3">填写你自己的同币种资金和止损情景，按现金与风险上限两者中更低的一项计算数量。字段均为空，不替你预设风险偏好。</p>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <label className="text-sm text-ink-2">币种<select name="currency" defaultValue="" required className={`${inputClass} mt-1`}><option value="" disabled>请选择币种</option>{["CNY", "USD", "HKD", "EUR", "JPY", "GBP"].map((c) => <option key={c}>{c}</option>)}</select></label>
+        <label className="text-sm text-ink-2">币种<select name="currency" defaultValue="" required className={`${inputClass} mt-1`}><option value="" disabled>请选择币种</option>{["CNY", "USD", "HKD", "KRW", "EUR", "JPY", "GBP"].map((c) => <option key={c}>{c}</option>)}</select></label>
         {([{ name: "capital", label: "可用资金", min: "0.01", step: "any" }, { name: "maxRiskPercent", label: "单笔风险上限（%）", min: "0.001", step: "any", max: "100" }, { name: "entryPrice", label: "计划入场价", min: "0.000001", step: "any" }, { name: "stopPrice", label: "计划止损价", min: "0", step: "any" }, { name: "lotSize", label: "每手 / 最小交易数量", min: "1", step: "1" }] as const).map((field) => <label key={field.name} className="text-sm text-ink-2">{field.label}<input name={field.name} type="number" inputMode="decimal" required min={field.min} step={field.step} max={"max" in field ? field.max : undefined} className={`${inputClass} mt-1`} /></label>)}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3"><button type="submit" className={primaryClass}>计算风险预算</button><span className="text-xs text-ink-3">入场价须高于止损价；仅多头现金情景</span></div>

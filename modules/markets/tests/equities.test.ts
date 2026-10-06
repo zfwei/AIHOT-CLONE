@@ -47,6 +47,16 @@ test("equity parser rejects unexpected instruments, detached series, duplicate d
   assert.throws(() => parseEquityResult({ quotes: [], history: [], errors: [{ instrumentId: "aapl", message: "Fixture failure" }] }, "yfinance", NOW), /No yfinance data collected/);
 });
 
+test("Asian equity indices accept points and unadjusted histories with their own close times", () => {
+  for (const [instrumentId, asOf] of [["hk-hsi", "2020-01-06T08:00:00Z"], ["kr-kospi", "2020-01-06T06:30:00Z"], ["jp-nikkei225", "2020-01-06T06:00:00Z"]]) {
+    const q = quote({ instrumentId, asOf, unit: "points", value: 3000, previousClose: 2990 });
+    const h = bar("2020-01-06", 3000, { instrumentId, priceBasis: "unadjusted" });
+    const result = parseEquityResult({ quotes: [q], history: [h], errors: [] }, "yfinance", NOW);
+    assert.equal(result.quotes[0]!.asOf, asOf);
+    assert.throws(() => parseEquityResult({ quotes: [{ ...q, unit: "price" }], history: [h], errors: [] }, "yfinance", NOW), /Wrong unit/);
+  }
+});
+
 test("equity parser requires adjusted stocks, unadjusted indices, daily frequency and retrieved availability", () => {
   const { quotes, history } = collected();
   for (const priceBasis of [undefined, "unadjusted"] as const) {

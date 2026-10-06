@@ -23,20 +23,41 @@ from zoneinfo import ZoneInfo
 UTC = timezone.utc
 CN = ZoneInfo("Asia/Shanghai")
 US = ZoneInfo("America/New_York")
+MARKETS = {
+    "cn": {"zone": CN, "calendar": None},
+    "us": {"zone": US, "calendar": "NYSE"},
+    "hk": {"zone": ZoneInfo("Asia/Hong_Kong"), "calendar": "XHKG"},
+    "kr": {"zone": ZoneInfo("Asia/Seoul"), "calendar": "XKRX"},
+    "jp": {"zone": ZoneInfo("Asia/Tokyo"), "calendar": "JPX"},
+}
 INSTRUMENTS = {
     "akshare": (
-        {"id": "cn-sse-composite", "symbol": "sh000001", "stock": False},
-        {"id": "cn-csi300", "symbol": "sh000300", "stock": False},
-        {"id": "600519.sh", "symbol": "sh600519", "stock": True},
+        {"id": "cn-sse-composite", "symbol": "sh000001", "stock": False, "market": "cn"},
+        {"id": "cn-csi300", "symbol": "sh000300", "stock": False, "market": "cn"},
+        {"id": "600519.sh", "symbol": "sh600519", "stock": True, "market": "cn"},
     ),
     "yfinance": (
-        {"id": "us-sp500", "symbol": "^GSPC", "stock": False},
-        {"id": "us-nasdaq100", "symbol": "^NDX", "stock": False},
-        {"id": "aapl", "symbol": "AAPL", "stock": True},
-        {"id": "msft", "symbol": "MSFT", "stock": True},
-        {"id": "nvda", "symbol": "NVDA", "stock": True},
+        {"id": "us-sp500", "symbol": "^GSPC", "stock": False, "market": "us"},
+        {"id": "us-nasdaq100", "symbol": "^NDX", "stock": False, "market": "us"},
+        {"id": "aapl", "symbol": "AAPL", "stock": True, "market": "us"},
+        {"id": "msft", "symbol": "MSFT", "stock": True, "market": "us"},
+        {"id": "nvda", "symbol": "NVDA", "stock": True, "market": "us"},
+        {"id": "hk-hsi", "symbol": "^HSI", "stock": False, "market": "hk"},
+        {"id": "kr-kospi", "symbol": "^KS11", "stock": False, "market": "kr"},
+        {"id": "jp-nikkei225", "symbol": "^N225", "stock": False, "market": "jp"},
     ),
 }
+
+# XKRX's bundled CSAT dates stop at 2020; never invent a future special-session close.
+# Confirmed 2025 notice: https://securities.miraeasset.com/bbs/board/message/view.do?categoryId=66&messageId=2335796
+KR_CONFIRMED_CLOSES = {date(2025, 11, 13): time(16, 30)}
+# Announced 2026 closures absent from XKRX 4.13.2's holiday set.
+# https://www.samsungpop.com/ux/kor/customer/notice/notice/noticeViewContent.do?MenuSeqNo=23996
+# https://kind.krx.co.kr/external/2026/05/20/000110/20260520000197/32154.htm
+KR_CONFIRMED_HOLIDAYS = {date(2026, 6, 3), date(2026, 7, 17)}
+# The education ministry confirms this exam date, not KRX's trading hours. Reject its bars until confirmed.
+# https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=294&boardSeq=100526&lev=0&m=020402&opType=N&s=moe&statusYN=W
+KR_UNCONFIRMED_SESSIONS = {date(2026, 11, 19)}
 
 
 def instant(value: datetime) -> str:
@@ -73,17 +94,20 @@ def positive(value) -> float:
     return number
 
 
-def normalized_rows(rows, source: str, now: datetime, sessions: dict[date, datetime] | None):
-    zone = CN if source == "akshare" else US
+def normalized_rows(rows, instrument: dict, now: datetime, sessions: dict[date, datetime] | None):
+    market = MARKETS[instrument["market"]]
+    zone = market["zone"]
     first = year_start(now.astimezone(zone).date())
     result = {}
     for row in rows:
         day = trading_date(row["date"], zone)
         if day < first or day > now.astimezone(zone).date():
             continue
-        if source == "yfinance":
+        if instrument["market"] == "kr" and day in KR_UNCONFIRMED_SESSIONS:
+            raise ValueError(f"KRX special-session closing time is unconfirmed: {day}")
+        if market["calendar"]:
             if sessions is None:
-                raise ValueError("US exchange closing schedule is required")
+                raise ValueError("Exchange closing schedule is required")
             close_at = sessions.get(day)
             if close_at is None:  # Weekend, holiday or a non-session vendor row.
                 continue
@@ -107,8 +131,8 @@ def build_instrument(instrument: dict, source: str, raw_rows, adjusted_rows,
                      now: datetime, sessions: dict[date, datetime] | None = None):
     """Pure conversion: a failed instrument contributes neither quotes nor history."""
     published_at = instant(now)
-    raw = normalized_rows(raw_rows, source, now, sessions)
-    adjusted = normalized_rows(adjusted_rows, source, now, sessions) if instrument["stock"] else raw
+    raw = normalized_rows(raw_rows, instrument, now, sessions)
+    adjusted = normalized_rows(adjusted_rows, instrument, now, sessions) if instrument["stock"] else raw
     if set(raw) != set(adjusted):
         raise ValueError("Raw and adjusted trading dates disagree")
     dates = list(raw)
@@ -152,7 +176,7 @@ def fetch_yfinance(instrument: dict, now: datetime):
     cache = Path(os.environ.get("MARKET_CACHE_DIR", ".data/markets-cache"))
     cache.mkdir(parents=True, exist_ok=True)
     yf.set_tz_cache_location(str(cache))
-    today = now.astimezone(US).date()
+    today = now.astimezone(MARKETS[instrument["market"]]["zone"]).date()
     frame = yf.Ticker(instrument["symbol"]).history(
         start=year_start(today).isoformat(), end=(today + timedelta(days=1)).isoformat(),
         interval="1d", auto_adjust=False, back_adjust=False, actions=False,
@@ -163,31 +187,50 @@ def fetch_yfinance(instrument: dict, now: datetime):
     return raw, adjusted
 
 
-def us_sessions(now: datetime):
+def exchange_sessions(market_id: str, now: datetime):
     import pandas_market_calendars as calendars
-    today = now.astimezone(US).date()
-    # NYSE/Nasdaq cash sessions use these closes, including scheduled half-days and DST.
-    schedule = calendars.get_calendar("NYSE").schedule(start_date=year_start(today), end_date=today)
-    return {day.date(): row["market_close"].to_pydatetime() for day, row in schedule.iterrows()}
+    market = MARKETS[market_id]
+    today = now.astimezone(market["zone"]).date()
+    if market_id == "kr" and (year_start(today) < date(2025, 1, 1) or today > date(2026, 12, 31)):
+        raise ValueError("KRX special-session coverage requires review outside 2025–2026")
+    calendar = calendars.get_calendar(market["calendar"])
+    # Only closing times are needed: a lunch break must never finalize a daily bar.
+    schedule = calendar.schedule(start_date=year_start(today), end_date=today,
+                                 market_times=["market_close"], force_special_times=False)
+    sessions = {day.date(): row["market_close"].to_pydatetime() for day, row in schedule.iterrows()}
+    if market_id == "hk":
+        # XHKG includes half-days that PMC's HKEX calendar omits. Include the closing-auction
+        # upper bound (16:10 / 12:10), not the earlier continuous-session end or an invented print time.
+        # https://www.hkex.com.hk/Services/Trading-hours-and-Severe-Weather-Arrangements/Trading-Hours/Securities-Market
+        sessions = {day: close + timedelta(minutes=10) for day, close in sessions.items()}
+    elif market_id == "kr":
+        for day, close in KR_CONFIRMED_CLOSES.items():
+            if day in sessions:
+                sessions[day] = datetime.combine(day, close, market["zone"])
+        for day in KR_UNCONFIRMED_SESSIONS | KR_CONFIRMED_HOLIDAYS:
+            sessions.pop(day, None)
+    return sessions
 
 
 def collect(source: str, fetch=None, clock=None, sessions=None):
     clock = clock or (lambda: datetime.now(UTC))
     fetch = fetch or (fetch_akshare if source == "akshare" else fetch_yfinance)
     output = {"quotes": [], "history": [], "errors": []}
-    # Required calendar failures are reported for every affected instrument, never silently guessed.
-    calendar_error = None
-    if source == "yfinance" and sessions is None:
-        try:
-            sessions = us_sessions(clock())
-        except Exception as error:
-            calendar_error = error
+    # One local calendar build per market, with failures isolated to that market's instruments.
+    calendars = {} if sessions is None else dict(sessions)
     for instrument in INSTRUMENTS[source]:
         try:
-            if calendar_error:
-                raise calendar_error
+            market = instrument["market"]
+            if MARKETS[market]["calendar"] and market not in calendars:
+                try:
+                    calendars[market] = exchange_sessions(market, clock())
+                except Exception as error:
+                    calendars[market] = error
+            schedule = calendars.get(market)
+            if isinstance(schedule, Exception):
+                raise schedule
             raw, adjusted = fetch(instrument, clock())
-            result, history = build_instrument(instrument, source, raw, adjusted, clock(), sessions)
+            result, history = build_instrument(instrument, source, raw, adjusted, clock(), schedule)
             output["quotes"].append(result)
             output["history"].extend(history)
         except Exception as error:

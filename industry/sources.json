@@ -109,6 +109,91 @@
       "site_fulltext": false,
       "syndicate_fulltext": false,
       "enabled": true
+    },
+    {
+      "id": "sfc-official-news",
+      "name": "香港证监会 · 新闻公布",
+      "kind": "rss",
+      "config": {
+        "feedUrl": "https://www.sfc.hk/en/RSS-Feeds/Press-releases",
+        "allowUrlPrefixes": [
+          "https://apps.sfc.hk/edistributionWeb/gateway/EN/news-and-announcements/news/doc?refNo="
+        ],
+        "itemUrlPrefixRewrite": {
+          "from": "https://apps.sfc.hk/edistributionWeb/gateway/EN/news-and-announcements/news/doc?refNo=",
+          "to": "https://apps.sfc.hk/edistributionWeb/api/news/list-content?lang=EN&refNo="
+        }
+      },
+      "owner_entity_id": "sfc",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
+    },
+    {
+      "id": "jpx-market-news",
+      "name": "日本交易所集团 · 市场新闻",
+      "kind": "rss",
+      "config": {
+        "feedUrl": "https://www.jpx.co.jp/english/rss/markets_news.xml",
+        "allowUrlPrefixes": [
+          "https://www.jpx.co.jp/english/news/"
+        ]
+      },
+      "owner_entity_id": "jpx",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
+    },
+    {
+      "id": "fsc-policy-news",
+      "name": "韩国金融委员会 · 政策公告",
+      "kind": "web_list",
+      "config": {
+        "url": "https://www.fsc.go.kr/eng/pr010101?srchCtgry=1",
+        "itemSelector": "ul.board-list > li",
+        "linkSelector": ".cont > a",
+        "titleSelector": "dt",
+        "publishedAtSelector": "span.data",
+        "publishedAtUtcOffset": "+09:00",
+        "allowUrlPrefixes": [
+          "https://www.fsc.go.kr/eng/pr010101/"
+        ]
+      },
+      "owner_entity_id": "fsc",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
+    },
+    {
+      "id": "bok-official-news",
+      "name": "韩国央行 · 新闻发布",
+      "kind": "rss",
+      "config": {
+        "feedUrl": "https://www.bok.or.kr/eng/bbs/E0000634/news.rss?menuNo=400069",
+        "allowUrlPrefixes": [
+          "https://www.bok.or.kr/eng/bbs/E0000634/view.do?"
+        ]
+      },
+      "owner_entity_id": "bok",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+import warnings
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("collect_equities", Path(__file__).parents[1] / "collect_equities.py")
@@ -20,6 +21,7 @@ UTC = timezone.utc
 CN_STOCK = collector.INSTRUMENTS["akshare"][2]
 CN_INDEX = collector.INSTRUMENTS["akshare"][0]
 US_STOCK = collector.INSTRUMENTS["yfinance"][2]
+HK_INDEX, KR_INDEX, JP_INDEX = collector.INSTRUMENTS["yfinance"][5:]
 
 
 def moment(text):
@@ -179,6 +181,102 @@ class DailyEquityTests(unittest.TestCase):
             collector.main(["--source", "akshare"])
         self.assertEqual(json.loads(stdout.getvalue()), expected)
         self.assertEqual(stderr.getvalue(), "provider progress\n")
+
+    def test_installed_calendars_cover_2026_and_keep_japan_extended_close(self):
+        # Local package calendars only; no provider calls. The actual rules are part of the contract.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            schedules = {market: collector.exchange_sessions(market, moment("2026-12-31T23:00:00Z")) for market in ["us", "hk", "jp"]}
+            korean = collector.exchange_sessions("kr", moment("2026-12-31T14:00:00Z"))
+        for schedule in [*schedules.values(), korean]:
+            self.assertGreater(len(schedule), 230)
+            self.assertNotIn(date(2026, 1, 1), schedule)
+        self.assertNotIn(date(2026, 6, 3), korean)
+        self.assertNotIn(date(2026, 7, 17), korean)
+        self.assertEqual(collector.instant(schedules["jp"][date(2026, 12, 30)]), "2026-12-30T06:30:00.000Z")
+        self.assertNotIn(date(2026, 12, 31), schedules["jp"])
+        prior_japan = collector.exchange_sessions("jp", moment("2024-11-05T12:00:00Z"))
+        self.assertEqual(collector.instant(prior_japan[date(2024, 11, 1)]), "2024-11-01T06:00:00.000Z")
+        self.assertEqual(collector.instant(prior_japan[date(2024, 11, 5)]), "2024-11-05T06:30:00.000Z")
+
+    def test_hong_kong_actual_half_days_include_auction_end_and_convert_utc_date(self):
+        sessions = collector.exchange_sessions("hk", moment("2026-12-31T12:00:00Z"))
+        for day in [date(2026, 2, 16), date(2026, 12, 24), date(2026, 12, 31)]:
+            self.assertEqual(sessions[day].astimezone(collector.MARKETS["hk"]["zone"]).strftime("%H:%M"), "12:10")
+        raw = rows(("2026-02-13", 26000), (moment("2026-02-15T16:00:00Z"), 26100))
+        before, _ = collector.build_instrument(HK_INDEX, "yfinance", raw, None, moment("2026-02-16T04:09:59Z"), sessions)
+        after, history = collector.build_instrument(HK_INDEX, "yfinance", raw, None, moment("2026-02-16T04:10:00Z"), sessions)
+        self.assertEqual(before["value"], 26000)
+        self.assertEqual(after["asOf"], "2026-02-16T04:10:00.000Z")
+        self.assertEqual(history[-1]["date"], "2026-02-16")
+        self.assertEqual(after["unit"], "points")
+        self.assertEqual(history[-1]["priceBasis"], "unadjusted")
+        self.assertIn("%5EHSI", after["sourceUrl"])
+
+    def test_asian_midday_and_unfinished_afternoon_rows_never_become_daily_closes(self):
+        for instrument in [HK_INDEX, KR_INDEX, JP_INDEX]:
+            with self.subTest(instrument=instrument["id"]), warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                market = instrument["market"]
+                zone = collector.MARKETS[market]["zone"]
+                sessions = collector.exchange_sessions(market, moment("2026-06-08T12:00:00Z"))
+                raw = rows(("2026-06-05", 100), (datetime(2026, 6, 8, tzinfo=zone).astimezone(UTC), 110))
+                lunch = datetime(2026, 6, 8, 12, 15, tzinfo=zone)
+                quote, _ = collector.build_instrument(instrument, "yfinance", raw, None, lunch, sessions)
+                self.assertEqual(quote["value"], 100)
+                close = sessions[date(2026, 6, 8)]
+                quote, _ = collector.build_instrument(instrument, "yfinance", raw, None, close - timedelta(seconds=1), sessions)
+                self.assertEqual(quote["value"], 100)
+                quote, history = collector.build_instrument(instrument, "yfinance", raw, None, close, sessions)
+                self.assertEqual(quote["value"], 110)
+                self.assertEqual(history[-1]["date"], "2026-06-08")
+                self.assertEqual(quote["asOf"], collector.instant(close))
+
+    def test_korean_confirmed_exam_day_delays_close_and_unknown_hours_are_rejected(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            sessions = collector.exchange_sessions("kr", moment("2026-10-06T12:00:00Z"))
+        raw = rows(("2025-11-12", 2900), ("2025-11-13", 3000))
+        before, _ = collector.build_instrument(KR_INDEX, "yfinance", raw, None, moment("2025-11-13T07:29:59Z"), sessions)
+        after, _ = collector.build_instrument(KR_INDEX, "yfinance", raw, None, moment("2025-11-13T07:30:00Z"), sessions)
+        self.assertEqual(before["value"], 2900)
+        self.assertEqual(after["asOf"], "2025-11-13T07:30:00.000Z")
+        with self.assertRaisesRegex(ValueError, "unconfirmed: 2026-11-19"):
+            collector.build_instrument(KR_INDEX, "yfinance", rows(("2026-11-19", 3100)), None, moment("2026-11-19T20:00:00Z"), {})
+        with self.assertRaisesRegex(ValueError, "requires review"):
+            collector.exchange_sessions("kr", moment("2027-01-04T12:00:00Z"))
+
+    def test_yahoo_request_dates_use_each_exchange_day_instead_of_new_york(self):
+        # Monday morning in Asia is still Sunday in New York.
+        calls = {}
+        def ticker(symbol):
+            def history(**kwargs):
+                calls[symbol] = kwargs
+                return Frame([])
+            return SimpleNamespace(history=history)
+        fake = SimpleNamespace(Ticker=ticker, set_tz_cache_location=lambda path: None)
+        with tempfile.TemporaryDirectory() as cache, patch.dict(os.environ, {"MARKET_CACHE_DIR": cache}), patch.dict(sys.modules, {"yfinance": fake}):
+            for instrument in [US_STOCK, HK_INDEX, KR_INDEX, JP_INDEX]:
+                collector.fetch_yfinance(instrument, moment("2026-06-07T23:30:00Z"))
+        self.assertEqual(calls["AAPL"]["end"], "2026-06-08")
+        for symbol in ["^HSI", "^KS11", "^N225"]:
+            self.assertEqual(calls[symbol]["end"], "2026-06-09")
+
+    def test_calendar_failure_isolated_to_korea_and_one_schedule_built_per_market(self):
+        seen = []
+        def schedule(market, now):
+            seen.append(market)
+            if market == "kr":
+                raise ValueError("Fixture unconfirmed KRX hours")
+            return {date(2026, 6, 8): moment("2026-06-08T20:00:00Z")}
+        def fetch(instrument, now):
+            raw = rows(("2026-06-08", 100))
+            return raw, raw if instrument["stock"] else None
+        with patch.object(collector, "exchange_sessions", schedule), redirect_stderr(io.StringIO()):
+            result = collector.collect("yfinance", fetch=fetch, clock=lambda: moment("2026-06-08T23:00:00Z"))
+        self.assertEqual(seen, ["us", "hk", "kr", "jp"])
+        self.assertEqual(len(result["quotes"]), 7)
+        self.assertEqual([error["instrumentId"] for error in result["errors"]], ["kr-kospi"])
 
 
 if __name__ == "__main__":
