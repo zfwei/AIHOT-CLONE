@@ -6,7 +6,7 @@ import { sql } from "@aihot/backend/db";
 import { audit } from "@aihot/backend/audit";
 import { readMarketData, writeSnapshot, collectionState } from "../backend/snapshot.ts";
 import { parseSnapshot } from "../backend/validation.ts";
-import { JAPAN_MOF_QUEUE, TREASURY_QUEUE, ECB_QUEUE } from "../server.ts";
+import { MARKET_QUEUES, POLICY_RESEARCH_QUEUE } from "../server.ts";
 
 async function admin(req: FastifyRequest, reply: FastifyReply): Promise<AdminPrincipal | null> {
   reply.header("Cache-Control", "no-store");
@@ -18,6 +18,20 @@ async function admin(req: FastifyRequest, reply: FastifyReply): Promise<AdminPri
 const reasonSchema = z.string().trim().min(1).max(500);
 
 export function registerMarketRoutes(app: FastifyInstance) {
+  app.post("/api/admin/markets/research", { bodyLimit: 4096 }, async (req, reply) => {
+    const principal = await admin(req, reply);
+    if (!principal) return;
+    if (process.env.MODEL_CALLS_ENABLED !== "true") return reply.code(409).send({ error: "model_calls_disabled", detail: "请先配置 MODEL_CALLS_ENABLED=true 并重启 API 与 worker。" });
+    const parsed = z.object({ reason: reasonSchema }).strict().safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
+    const actor = actorOf(principal);
+    const jobId = await sql.begin(async (tx) => {
+      const id = await enqueueOn(POLICY_RESEARCH_QUEUE, { actor, reason: parsed.data.reason }, { singletonKey: "policy-research" }, tx);
+      await audit(actor, "markets.research", "module:markets", parsed.data.reason, null, { jobId: id }, { db: tx });
+      return id;
+    });
+    return reply.code(202).send({ queued: true, jobId });
+  });
   app.get("/api/v1/markets", async (_req, reply) => reply.header("Cache-Control", "no-store").send(await readMarketData()));
   app.get("/api/admin/markets", async (req, reply) => {
     if (!await admin(req, reply)) return;
@@ -42,11 +56,11 @@ export function registerMarketRoutes(app: FastifyInstance) {
     const principal = await admin(req, reply);
     if (!principal) return;
     if (!collectionState().enabled) return reply.code(409).send({ error: "collection_disabled", detail: "来源已确认；请先配置 COLLECT_ENABLED=true 并重启 API 与 worker。" });
-    const parsed = z.object({ reason: reasonSchema, source: z.enum(["treasury", "japan-mof", "ecb"]).default("treasury") }).strict().safeParse(req.body);
+    const parsed = z.object({ reason: reasonSchema, source: z.enum(["treasury", "japan-mof", "ecb", "nyfed", "fed"]).default("treasury") }).strict().safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
     const actor = actorOf(principal);
     const source = parsed.data.source;
-    const queue = source === "treasury" ? TREASURY_QUEUE : source === "japan-mof" ? JAPAN_MOF_QUEUE : ECB_QUEUE;
+    const queue = MARKET_QUEUES[source];
     const jobId = await sql.begin(async (tx) => {
       const id = await enqueueOn(queue, { actor, reason: parsed.data.reason }, { singletonKey: source }, tx);
       await audit(actor, "markets.collect", `source:${source}`, parsed.data.reason, null, { jobId: id }, { db: tx });

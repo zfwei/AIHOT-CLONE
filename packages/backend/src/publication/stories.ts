@@ -1,6 +1,6 @@
 // Stories (events) and the hot ranking through the public read layer. The website sees heat values;
 // v1 and MCP only see ranks and counts.
-import type { HeatPoint, HotResponse, StoryDetail, StoryReportView } from "@aihot/contracts/site";
+import type { HeatPoint, HotObservation, HotResponse, StoryDetail, StoryReportView } from "@aihot/contracts/site";
 import { SITE } from "@aihot/site";
 import { sql } from "../db.ts";
 import { cachedByKey, SHARED_ONLY } from "../lib/cache.ts";
@@ -232,9 +232,39 @@ async function queryHotCovers({ entries }: HotRanking) {
   return covers;
 }
 
+/** Single independent participants that have not ranked in this window can be observed without heat.
+ * A withdrawal reranks immediately; the retained ranking history prevents a removed event from
+ * resurfacing here just because only one public participant remains.
+ */
+export async function loadHotObservations(now = new Date(), rankedStoryIds: number[] = []): Promise<HotObservation[]> {
+  const since = new Date(now.getTime() - 48 * 3600_000);
+  const rows = await sql<{ public_id: string; title: string; latest_at: Date; source_names: string[]; report_count: number }[]>`
+    WITH current AS (
+      SELECT * FROM ${currentSignals()} cs WHERE cs.observed_at > ${since} AND cs.observed_at <= ${now}
+    ), single AS (
+      SELECT story_id FROM current GROUP BY story_id
+      HAVING count(DISTINCT participant_key) = 1 AND bool_or(kind = 'editorial')
+    )
+    SELECT st.public_id::text, (array_agg(p.title ORDER BY cs.observed_at DESC, p.article_id DESC))[1] AS title,
+      max(cs.observed_at) AS latest_at, array_agg(DISTINCT s.name) AS source_names, count(DISTINCT p.article_id)::int AS report_count
+    FROM single JOIN current cs USING (story_id) JOIN stories st ON st.id = cs.story_id
+    JOIN publications p ON p.article_id = cs.article_id JOIN sources s ON s.id = cs.source_id
+    WHERE cs.kind = 'editorial' AND st.merged_into IS NULL AND ${listedCondition(now)}
+      AND NOT (st.id = ANY(${rankedStoryIds}::bigint[]))
+      AND NOT EXISTS (
+        SELECT 1 FROM hot_rankings hr CROSS JOIN LATERAL jsonb_array_elements(hr.entries) entry
+        WHERE hr.published AND hr.computed_at > ${since} AND hr.computed_at <= ${now}
+          AND entry->>'storyId' = st.id::text
+      )
+    GROUP BY st.id, st.public_id ORDER BY latest_at DESC, st.id DESC LIMIT 6`;
+  return rows.map((row) => ({ storyPublicId: row.public_id, title: row.title, latestAt: row.latest_at.toISOString(),
+    sourceNames: [...new Set(row.source_names.map(publicSourceName))], reportCount: row.report_count }));
+}
+
 export async function loadHot(): Promise<HotResponse> {
   const ranking = await latestHotRanking();
-  if (!ranking) return { computedAt: null, windowHours: 48, entries: [] };
+  const observations = await loadHotObservations(new Date(), ranking?.entries.map((entry) => entry.storyId));
+  if (!ranking) return { computedAt: null, windowHours: 48, entries: [], observations };
   const at = new Date(ranking.computedAt);
   const [sparks, covers, extras] = await Promise.all([
     sparklines(
@@ -247,6 +277,7 @@ export async function loadHot(): Promise<HotResponse> {
   return {
     computedAt: ranking.computedAt,
     windowHours: 48,
+    observations,
     entries: ranking.entries.map((e) => {
       const picture = covers.get(e.storyId);
       const coverUrl = picture ? proxiedImage(picture.url, "full") : null;

@@ -12,8 +12,11 @@ const quote = z.object({ instrumentId: id, value: z.number().finite(), previousC
 const evidence = z.object({ id, market, metric: id, value: z.number().finite().nullable(), unit: z.string().trim().min(1).max(40), asOf: timestamp, publishedAt: timestamp, expiresAt: timestamp, ...provenance }).strict();
 const rule = z.object({ id, market, factor: z.enum(["valuation", "crowding", "liquidity", "speculation"]), metric: id, unit: z.string().trim().min(1).max(40), operator: z.enum(["gte", "lte"]), threshold: z.number().finite().nullable(), version: text, enabled: z.boolean() }).strict();
 const history = z.object({ priceBasis: z.enum(["adjusted", "unadjusted"]).optional(), instrumentId: id, date: z.iso.date(), close: z.number().finite(), publishedAt: timestamp, availabilityBasis: z.enum(["published", "retrieved"]).optional(), ...provenance }).strict();
-const idea = z.object({ id, market, instrumentId: id, title: text, hypothesis: z.string().trim().min(1).max(3000), condition: z.string().trim().min(1).max(3000), invalidation: z.string().trim().min(1).max(3000), horizon: text.nullable(), asOf: timestamp, expiresAt: timestamp, ...provenance }).strict();
-const schema = z.object({ schemaVersion: z.literal(1), asOf: timestamp, quotes: z.array(quote).max(100), evidence: z.array(evidence).max(200), rules: z.array(rule).max(100), history: z.array(history).max(10000), ideas: z.array(idea).max(100) }).strict();
+const idea = z.object({ id, market, instrumentId: id, title: text, hypothesis: z.string().trim().min(1).max(3000), condition: z.string().trim().min(1).max(3000), invalidation: z.string().trim().min(1).max(3000), horizon: text.nullable(), asOf: timestamp, expiresAt: timestamp, ...provenance,
+  researchType: z.literal("policy-scenario").optional(), sourceArticleId: z.string().min(1).max(100).optional(), evidenceQuote: z.string().trim().min(8).max(80).optional(),
+}).strict().refine((row) => row.researchType === "policy-scenario" ? Boolean(row.sourceArticleId && row.evidenceQuote) : row.sourceArticleId === undefined && row.evidenceQuote === undefined, "Policy research metadata must be present together");
+const macro = z.object({ id, sourceId: id, metric: id, label: text, value: z.number().finite(), unit: z.enum(["percent", "usd-million"]), frequency: z.enum(["daily", "weekly"]), asOf: timestamp, publishedAt: timestamp, availabilityBasis: z.enum(["published", "retrieved"]), ...provenance, sourceNotice: z.string().trim().min(1).max(2000).optional(), sourceTermsUrl: url.optional() }).strict();
+const schema = z.object({ schemaVersion: z.literal(1), asOf: timestamp, quotes: z.array(quote).max(100), evidence: z.array(evidence).max(200), rules: z.array(rule).max(100), history: z.array(history).max(10000), ideas: z.array(idea).max(100), macro: z.array(macro).max(500).optional() }).strict();
 
 export function parseSnapshot(input: unknown, now = new Date()): Snapshot {
   if (Buffer.byteLength(JSON.stringify(input) ?? "") > 1024 * 1024) throw new Error("Snapshot exceeds 1 MB");
@@ -28,6 +31,12 @@ export function parseSnapshot(input: unknown, now = new Date()): Snapshot {
   unique(snapshot.rules.map((r) => r.id));
   unique(snapshot.ideas.map((i) => i.id));
   unique(snapshot.history.map((h) => `${h.instrumentId}:${h.date}`));
+  unique((snapshot.macro ?? []).map((m) => m.id));
+  unique((snapshot.macro ?? []).map((m) => `${m.sourceId}:${m.metric}:${m.asOf}`));
+  for (const m of snapshot.macro ?? []) {
+    notFuture(m.asOf); notFuture(m.publishedAt);
+    if (Date.parse(m.asOf) > Date.parse(m.publishedAt)) fail("Macro publication precedes observation");
+  }
   for (const q of snapshot.quotes) {
     const i = instrument(q.instrumentId);
     const unit = i.kind === "bond-yield" ? "percent" : i.kind === "index" ? "points" : "price";
@@ -56,5 +65,5 @@ export function parseSnapshot(input: unknown, now = new Date()): Snapshot {
 }
 
 export function emptySnapshot(): Snapshot {
-  return { schemaVersion: 1, asOf: "1970-01-01T00:00:00.000Z", quotes: [], evidence: [], rules: [], history: [], ideas: [] };
+  return { schemaVersion: 1, asOf: "1970-01-01T00:00:00.000Z", quotes: [], evidence: [], rules: [], history: [], ideas: [], macro: [] };
 }

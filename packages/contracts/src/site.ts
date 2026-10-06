@@ -198,6 +198,16 @@ export interface HotResponse {
   computedAt: string | null;
   windowHours: number;
   entries: HotEntryView[];
+  /** Recent single-participant stories, separate from the ranking and without heat scores. */
+  observations: HotObservation[];
+}
+
+export interface HotObservation {
+  storyPublicId: string;
+  title: string;
+  latestAt: string;
+  sourceNames: string[];
+  reportCount: number;
 }
 
 export interface HeatPoint {
@@ -319,10 +329,25 @@ export interface ReportIndexResponse {
   items: ReportIndexEntry[];
 }
 
+/** A present-day reading of selected source material, never a report issued in the past. */
+export interface ReportRetrospective {
+  kind: ReportKind;
+  asOf: string;
+  limitPerPeriod: number;
+  periods: Array<{
+    key: string;
+    startDate: string;
+    endDate: string;
+    total: number;
+    items: Array<ReportCitation & { recordedAt: string }>;
+  }>;
+}
+
 /** The latest report page: its archive selector and the report in one request. */
 export interface ReportLatestPage {
   index: ReportNavigationEntry[];
   report: ReportDetail | null;
+  retrospective: ReportRetrospective | null;
 }
 
 /** A report's archive selector, or one month of the daily archive. */
@@ -448,6 +473,8 @@ export interface TopicPage {
   /** The site's modules' parts of the page, under their names; each module's web part draws its own. */
   modules: Record<string, unknown>;
   items: FeedItemSummary[];
+  /** Recent listed, non-selected reports when the first page has no selected content. */
+  collectedItems: FeedItemSummary[];
   page: number;
   pageCount: number;
   pageSize: number;

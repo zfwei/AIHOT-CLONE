@@ -116,6 +116,8 @@ test("admin collection selects an approved source queue and audits without execu
   for (const [payload, queue, source] of [
     [{ source: "japan-mof", reason: "Queue JGB fixture only" }, "markets.japan-mof", "japan-mof"],
     [{ source: "ecb", reason: "Queue ECB fixture only" }, "markets.ecb", "ecb"],
+    [{ source: "nyfed", reason: "Queue NYFed fixture only" }, "markets.nyfed", "nyfed"],
+    [{ source: "fed", reason: "Queue H41 fixture only" }, "markets.fed", "fed"],
     [{ reason: "Queue Treasury fixture only" }, "markets.treasury", "treasury"],
   ] as const) {
     const response = await request(payload);
@@ -130,4 +132,14 @@ test("admin collection selects an approved source queue and audits without execu
     assert.equal(entry!.subject, `source:${source}`);
   }
   assert.equal(await readPublishedModuleSnapshot("markets"), null);
+});
+
+test("an existing schemaVersion 1 publication without macro remains readable without rewriting stored data", async () => {
+  const { macro: _macro, ...legacy } = fixture;
+  await sql`INSERT INTO settings (key, value) VALUES ('public.module.markets', ${sql.json(legacy as never)})`;
+  config.devAdmin = null;
+  const response = await app.inject({ method: "GET", url: "/api/v1/markets" });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().snapshot, { ...legacy, macro: [] });
+  assert.deepEqual(await readPublishedModuleSnapshot("markets"), legacy);
 });

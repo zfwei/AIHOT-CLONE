@@ -8,6 +8,7 @@ import { beijingDate } from "@aihot/contracts/time";
 import { EmptyState } from "../components/ui/Page";
 import { ReportLayout } from "../features/report/ReportLayout";
 import { ReportPaper, reportOutline } from "../features/report/ReportPaper";
+import { Retrospective } from "../features/report/Retrospective";
 import { KIND_LABEL, feedLink, kindFromPath } from "../features/report/format";
 import type { Screen } from "../components/shell/screens";
 
@@ -15,8 +16,8 @@ export const handle: Screen = { tab: "daily", name: "日报" };
 
 export async function loader({ request }: Route.LoaderArgs) {
   const kind = kindFromPath(new URL(request.url).pathname);
-  const { index, report } = await loadOr404<ReportLatestPage>(`/api/site/reports/${kind}/latest-page`, { signal: request.signal });
-  return { kind, report, index, today: beijingDate(Date.now()) };
+  const { index, report, retrospective } = await loadOr404<ReportLatestPage>(`/api/site/reports/${kind}/latest-page`, { signal: request.signal });
+  return { kind, report, index, retrospective, today: beijingDate(Date.now()) };
 }
 
 export function meta({ loaderData, location }: Route.MetaArgs) {
@@ -38,10 +39,10 @@ export function headers() {
 }
 
 export default function ReportLatestPage() {
-  const { kind, report, index, today } = useLoaderData<typeof loader>();
+  const { kind, report, index, retrospective, today } = useLoaderData<typeof loader>();
   return (
     <ReportLayout kind={kind} index={index} current={report?.key ?? null} today={today} outline={report ? reportOutline(report) : []}>
-      {report ? <ReportPaper report={report} index={index} /> : <EmptyState title={subjectAfter("还没有发布", KIND_LABEL[kind])}>第一期发布后会出现在这里。</EmptyState>}
+      {report ? <ReportPaper report={report} index={index} /> : retrospective?.periods.length ? <Retrospective data={retrospective} /> : <EmptyState title={subjectAfter("还没有发布", KIND_LABEL[kind])}>第一期发布后会出现在这里；有明确原文日期的精选收录后，这里也会提供历史回顾。</EmptyState>}
     </ReportLayout>
   );
 }

@@ -63,6 +63,9 @@ export interface PriceBar {
 }
 
 export interface TradeIdea {
+  researchType?: "policy-scenario";
+  sourceArticleId?: string;
+  evidenceQuote?: string;
   id: string;
   market: MarketId;
   instrumentId: string;
@@ -85,6 +88,25 @@ export interface Snapshot {
   rules: RiskRule[];
   history: PriceBar[];
   ideas: TradeIdea[];
+  /** Older published schemaVersion 1 snapshots predate the macro data adapters. */
+  macro?: MacroObservation[];
+}
+
+export interface MacroObservation {
+  id: string;
+  sourceId: string;
+  metric: string;
+  label: string;
+  value: number;
+  unit: "percent" | "usd-million";
+  frequency: "daily" | "weekly";
+  asOf: string;
+  publishedAt: string;
+  availabilityBasis: "published" | "retrieved";
+  sourceName: string;
+  sourceUrl: string;
+  sourceNotice?: string;
+  sourceTermsUrl?: string;
 }
 
 export interface FactorAssessment {

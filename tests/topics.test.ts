@@ -154,3 +154,25 @@ test("every topic has a page; unknown topics and pages past the end have none", 
   assert.equal(body.topics.length, TOPICS.length);
   assert.ok(body.topics.some(t => t.slug === "liquidity"));
 });
+
+test("a topic without selections offers real non-selected reports and rechecks withdrawals", async () => {
+  const collected = await report({ at: hoursAgo(4), title: `日本财务省 公布国债资料 ${T}`, subjects: ["japan-mof"], selected: false });
+  const hidden = await report({ at: hoursAgo(3), title: `日本财务省 撤回资料 ${T}`, subjects: ["japan-mof"], selected: false });
+  const future = await report({ at: hoursAgo(-24), title: `日本财务省 尚未发布 ${T}`, subjects: ["japan-mof"], selected: true });
+  await sql`UPDATE publications SET visibility = 'withdrawn' WHERE article_id = ${hidden}`;
+  const data = await page("japan-mof");
+  assert.deepEqual(data.items, []);
+  assert.equal(data.topic.total, 0);
+  assert.equal(data.topic.poolTotal, 1);
+  assert.deepEqual(ids(data.collectedItems), [collected]);
+  assert.ok(data.collectedItems.every((item) => !item.selected));
+  assert.ok(!ids(data.collectedItems).includes(future));
+  await sql`UPDATE publications SET visibility = 'withdrawn' WHERE article_id = ${collected}`;
+  assert.deepEqual((await loadTopicPage("japan-mof", 1))?.collectedItems, [], "no stale withdrawn report in the fallback");
+
+  const selected = await report({ at: hoursAgo(1), title: `日本财务省 已精选资料 ${T}`, subjects: ["japan-mof"], selected: true });
+  await report({ at: hoursAgo(2), title: `日本财务省 已收录资料 ${T}`, subjects: ["japan-mof"], selected: false });
+  const withSelection = await page("japan-mof");
+  assert.deepEqual(ids(withSelection.items), [selected]);
+  assert.deepEqual(withSelection.collectedItems, [], "fallback does not replace or mingle with selections");
+});

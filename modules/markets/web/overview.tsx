@@ -4,6 +4,8 @@ import { pageMeta } from "@aihot/web/lib/seo";
 import { evaluateMarket } from "../analysis.ts";
 import type { Instrument, MarketId, Quote } from "../domain.ts";
 import { loadMarkets } from "./data.server.ts";
+import { MacroIndicators } from "./macro.tsx";
+import { LiquidityEvidence } from "./liquidity.tsx";
 import { buttonClass, dateTime, Empty, FACTORS, MARKETS, MarketShell, number, Panel, Provenance, quoteAge, quoteObservedAt, quoteChange, quoteNumber, SourceLink, StateBadge, useEvaluationTime } from "./shared.tsx";
 
 export const loader = loadMarkets;
@@ -36,14 +38,16 @@ export default function Overview() {
   const { data, now: loadedAt } = useLoaderData<typeof loader>();
   const now = useEvaluationTime(loadedAt);
   const { snapshot, instruments, sources } = data;
-  const publishedSourceHosts = new Set([...snapshot.quotes, ...snapshot.evidence, ...snapshot.history, ...snapshot.ideas].map((record) => {
-    try { return new URL(record.sourceUrl).hostname.replace(/^www\./, ""); } catch { return ""; }
-  }));
+  const publishedRecords = [
+    ...snapshot.quotes, ...snapshot.evidence, ...snapshot.ideas, ...(snapshot.macro ?? []),
+    ...snapshot.history.map((bar) => ({ ...bar, asOf: bar.date })),
+  ];
+  const sourceHost = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
   const [market, setMarket] = useState<MarketId | "all">("all");
   const selected = MARKETS.filter((m) => market === "all" || m.id === market);
   const assessments = selected.map((m) => ({ ...m, assessment: evaluateMarket(snapshot, m.id, new Date(now)) }));
   const listed = instruments.filter((i) => market === "all" || i.market === market);
-  return <MarketShell title="市场总览" description="先看数据时点，再看四项独立风险。未知表示证据不足，不代表风险较低。" asOf={snapshot.quotes.length || snapshot.evidence.length ? snapshot.asOf : undefined}>
+  return <MarketShell title="市场总览" description="先看数据时点，再看四项独立风险。未知表示证据不足，不代表风险较低。" asOf={snapshot.quotes.length || snapshot.evidence.length || snapshot.macro?.length ? snapshot.asOf : undefined}>
     <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">{MARKETS.map((m) => {
       const basket = instruments.filter((i) => i.market === m.id);
       const quote = basket.map((i) => snapshot.quotes.find((q) => q.instrumentId === i.id)).find(Boolean);
@@ -54,6 +58,7 @@ export default function Overview() {
     <Panel title="四因子风险矩阵" aside="逐项判断，不合成虚假的总分">
       <div className="grid divide-y divide-line lg:grid-cols-2 lg:divide-y-0">{assessments.map(({ id, label, assessment }) => <div key={id} className="min-w-0 p-4 lg:border-b lg:border-r lg:border-line"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-ink">{label}</h3><span className="text-xs text-ink-3">已判定 {assessment.evaluatedCount} 项 · 未知 {assessment.unknownCount} 项</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{assessment.factors.map((factor) => <div key={factor.factor} className="rounded-control border border-line p-3"><p className="mb-2 text-xs text-ink-3">{FACTORS[factor.factor]}</p><StateBadge state={factor.state} /></div>)}</div><details className="mt-3"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-accent">判断依据与有效期</summary><div className="space-y-3">{assessment.factors.map((factor) => <div key={factor.factor} className="border-l-2 border-line pl-3 text-xs leading-relaxed"><p className="font-semibold text-ink-2">{FACTORS[factor.factor]} · {factor.ruleVersion ?? "规则待配置"}</p><p className="mt-1 text-ink-3">{factor.reason}</p>{factor.validUntil && <p className="text-ink-3">有效至 {dateTime(factor.validUntil)}</p>}{factor.evidence.map((e) => <p key={e.id} className="mt-1 text-ink-3"><SourceLink url={e.sourceUrl}>{e.sourceName}</SourceLink> · {e.metric} {number(e.value)} {e.unit} · 观测 {dateTime(e.asOf)} · 发布 {dateTime(e.publishedAt)}</p>)}</div>)}</div></details></div>)}</div>
     </Panel>
+    <LiquidityEvidence observations={snapshot.macro ?? []} now={now} />
     <div className="mt-5 grid items-start gap-5 xl:grid-cols-[1.3fr_1fr]">
       <Panel title="观察清单" aside={`${listed.length} 个标的`}><div className="divide-y divide-line">{listed.map((instrument) => {
         const quote = snapshot.quotes.find((q) => q.instrumentId === instrument.id);
@@ -61,6 +66,12 @@ export default function Overview() {
       })}</div>{!listed.length && <Empty title="尚未配置观察标的">请在市场模块配置观察清单。</Empty>}</Panel>
       <div className="space-y-5"><Panel title="美国国债期限结构" aside="收益率上升 ≠ 债券价格上涨"><YieldCurve instruments={instruments.filter((i) => i.market === "us-treasury")} quotes={snapshot.quotes} /></Panel><Panel title="已发布的市场动态"><div className="grid grid-cols-2 gap-2 p-4">{MARKETS.map((m) => <Link key={m.id} to={`/all?category=${m.category}`} className={buttonClass}>{m.label}动态 →</Link>)}</div></Panel></div>
     </div>
-    <Panel title="数据来源与接入状态" className="mt-5" aside={`${sources.filter((s) => s.status === "approved").length} 个已确认 / ${sources.length} 个登记来源`}><div className="grid gap-0 divide-y divide-line md:grid-cols-2 md:divide-y-0">{sources.map((source) => <div key={source.id} className="min-w-0 p-4 md:border-b md:border-r md:border-line"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold"><SourceLink url={source.url}>{source.name}</SourceLink></h3><span className="rounded-mark bg-bg-sunk px-2 py-1 text-xs text-ink-3">{source.status === "approved" ? "来源已确认" : "待确认"}</span></div><p className="mt-2 text-xs font-medium text-ink-2">{source.integration === "ready" ? "适配器已实现" : "数据待接入"} · {publishedSourceHosts.has(new URL(source.url).hostname.replace(/^www\./, "")) ? "有同来源域名的已发布数据" : "暂无已发布数据"}</p><p className="mt-2 text-xs leading-relaxed text-ink-3">{source.coverage} · {source.frequency}</p><p className="mt-1 text-xs leading-relaxed text-ink-3">{source.note}</p></div>)}</div><p className="border-t border-line px-4 py-3 text-xs leading-relaxed text-ink-3">来源已确认不等于数据已更新。具体观测时间和出处以每条数据为准；采集{data.collection.enabled ? "已启用" : "未启用"}。</p></Panel>
+    <MacroIndicators observations={snapshot.macro ?? []} />
+    <Panel id="market-sources" title="数据来源与接入状态" className="mt-5" aside={`${sources.filter((s) => s.status === "approved").length} 个已确认 / ${sources.length} 个登记来源`}><div className="grid gap-0 divide-y divide-line md:grid-cols-2 md:divide-y-0">{sources.map((source) => {
+      const records = publishedRecords.filter((record) => sourceHost(record.sourceUrl) === sourceHost(source.url));
+      const latestObservation = records.map((record) => record.asOf.slice(0, 10)).sort().at(-1);
+      const latestAvailable = records.flatMap((record) => "publishedAt" in record ? [record.publishedAt] : []).sort().at(-1);
+      return <div key={source.id} className="min-w-0 p-4 md:border-b md:border-r md:border-line"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold"><SourceLink url={source.url}>{source.name}</SourceLink></h3><span className="rounded-mark bg-bg-sunk px-2 py-1 text-xs text-ink-3">{source.status === "approved" ? "来源已确认" : "待确认"}</span></div><p className="mt-2 text-xs font-medium text-ink-2">{source.integration === "ready" ? "适配器已实现" : "数据待接入"} · {records.length ? `${records.length} 条同来源域名的已发布记录` : "暂无已发布数据"}</p><p className="mt-2 text-xs leading-relaxed text-ink-3">{source.coverage} · {source.frequency}</p><p className="mt-1 text-xs leading-relaxed text-ink-3">{source.note}</p>{latestObservation && <p className="mt-2 text-xs leading-6 text-ink-3">最新观测 / 研究日 {latestObservation}{latestAvailable && <><br />最近记录可用时间 {dateTime(latestAvailable)}（北京时间）</>}</p>}</div>;
+    })}</div><p className="border-t border-line px-4 py-3 text-xs leading-relaxed text-ink-3">来源已确认不等于数据已更新。具体观测时间和出处以每条数据为准；采集{data.collection.enabled ? "已启用" : "未启用"}。 <Link to="/admin/markets" className="text-accent underline underline-offset-4">管理员：采集与发布市场数据 →</Link></p></Panel>
   </MarketShell>;
 }

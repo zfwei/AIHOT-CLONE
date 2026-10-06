@@ -85,7 +85,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export default function TopicRoute() {
   const { data } = useLoaderData<typeof loader>();
-  const { topic, items, page, pageCount, pageSize } = data;
+  const { topic, items, collectedItems, page, pageCount, pageSize } = data;
   const parts = partsOf(data);
   const href = (p: number) => (p <= 1 ? `/topics/${topic.slug}` : `/topics/${topic.slug}/page/${p}`);
   const first = (page - 1) * pageSize + 1;
@@ -136,8 +136,14 @@ export default function TopicRoute() {
 
       <h2 className="sr-only">{page === 1 ? `${topic.name}的精选` : `精选归档 · 第 ${page} 页`}</h2>
       {items.length === 0 ? (
-        <div className="lg:card">
-          <EmptyState title="这个主题暂时还没有精选内容" />
+        collectedItems.length ? <section aria-label="已收录资料（非精选）">
+          <div className="mb-4 rounded-card border border-line bg-surface p-4">
+            <h2 className="text-sm font-semibold text-ink">已收录资料（非精选）</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-3">这个主题暂时没有精选内容。以下是最近公开收录的 {collectedItems.length} 条资料，可查看摘要与原始出处。</p>
+          </div>
+          <DayList items={collectedItems} />
+        </section> : <div className="lg:card">
+          <EmptyState title="这个主题暂时还没有精选内容" action={<Link to="/all" className="text-accent hover:underline">浏览全部已发布动态 →</Link>} />
         </div>
       ) : (
         <DayList items={items} headerAside={<span className="num whitespace-nowrap">第 {first}–{last} 条<span className="hidden sm:inline"> · 共 {topic.total.toLocaleString("zh-CN")} 条</span></span>} />

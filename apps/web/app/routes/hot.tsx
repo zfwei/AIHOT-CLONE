@@ -22,7 +22,7 @@ export async function loader({ request }: { request: Request }) {
 export function meta() {
   return pageMeta({
     title: withSubject("热点榜"),
-    description: `${subjectAfter("过去 48 小时", "圈")}讨论最多的 10 个事件：热度指数、趋势与组成热度的公开来源。`,
+    description: `${subjectAfter("过去 48 小时", "圈")}的多来源热点与单来源观察：查看公开报道、观测时间与来源。`,
     path: "/hot",
     image: "/og/pages/hot.png",
   });
@@ -246,7 +246,7 @@ export default function HotPage() {
         large
         sub={
           <>
-            过去 {hot.windowHours}{`${subjectAfter(" 小时", "圈")}讨论最多的 `}{hot.entries.length || 10} 件事
+            过去 {hot.windowHours}{`${subjectAfter(" 小时", "圈")}讨论最多的 `}{hot.entries.length} 件事
             {hot.computedAt && (
               <>
                 {" · "}
@@ -268,10 +268,10 @@ export default function HotPage() {
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-hot opacity-30" />
               <span className="relative inline-flex size-2 rounded-full bg-hot" />
             </span>
-            实时热度
+            近期讨论
           </div>
           <h1 className="mt-1.5 text-[24px] font-bold leading-[1.3] tracking-[-0.01em] text-ink lg:text-[26px]">{withSubject("热点榜")}</h1>
-          <p className="mt-1.5 text-[13.5px] text-ink-3">过去 {hot.windowHours}{` 小时，${withSubject("圈")}讨论最多的 `}{hot.entries.length || 10} 件事</p>
+          <p className="mt-1.5 text-[13.5px] text-ink-3">过去 {hot.windowHours}{` 小时，${withSubject("圈")}讨论最多的 `}{hot.entries.length} 件事</p>
         </div>
         {hot.computedAt && (
           <p className="text-[12px] text-ink-4">
@@ -282,7 +282,7 @@ export default function HotPage() {
 
       {!lead ? (
         <div className="card rounded-sheet">
-          <EmptyState title="暂时没有热点">还没有足够多来源共同讨论的事件。</EmptyState>
+          <EmptyState title="暂时没有热点" action={<Link to="/all" className="text-accent hover:underline">浏览全部已发布动态 →</Link>}>还没有足够多来源共同讨论的事件。</EmptyState>
         </div>
       ) : (
         <>
@@ -314,6 +314,15 @@ export default function HotPage() {
           )}
         </>
       )}
+
+      {hot.observations.length > 0 && <section aria-labelledby="single-source-observations" className="mt-7">
+        <h2 id="single-source-observations" className="text-base font-semibold text-ink">单来源观察 · 非热点榜</h2>
+        <p className="mb-3 mt-2 text-sm leading-relaxed text-ink-3">过去 {hot.windowHours} 小时内，仅有一个独立账号或机构参与的公开事件，按最新报道时间排列。同一机构的多个渠道合并计算；这里不提供热度排名。</p>
+        <ul className="card divide-y divide-line-soft">{hot.observations.map((observation) => <li key={observation.storyPublicId} className="p-4">
+          <Link to={`/story/${observation.storyPublicId}`} className="text-sm font-semibold leading-relaxed text-ink hover:text-accent">{observation.title}</Link>
+          <p className="mt-2 text-xs leading-relaxed text-ink-3">{observation.sourceNames.join("、")} · {observation.reportCount} 篇公开报道 · 最新报道 <time dateTime={observation.latestAt}>{monthDayTime(observation.latestAt)}</time></p>
+        </li>)}</ul>
+      </section>}
 
       <details id="hot-method" className="disclosure group/method mt-8 scroll-mt-[calc(var(--bar-h)+16px)] text-[12px] text-ink-4">
         <summary className="flex items-center gap-1.5 py-1 transition-colors hover:text-ink-2">

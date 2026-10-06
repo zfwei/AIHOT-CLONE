@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { closeDb, sql } from "@aihot/backend/db";
-import { heatRows, snapshotHeat } from "@aihot/backend/events/hot";
+import { computeHotRanking, heatRows, snapshotHeat, storedHotRanking } from "@aihot/backend/events/hot";
+import { loadHot, loadHotObservations } from "@aihot/backend/publication/stories";
 
 const T = `hot-${tag()}`;
 const AT = new Date("2099-03-01T12:00:00Z");
@@ -155,4 +156,64 @@ test("an hour taken again updates the cohort after a source changes role", async
   const rows = await sql`SELECT participants, cohort FROM story_heat_hourly WHERE story_id = ${s}`;
   assert.ok(rows.length > 0);
   assert.ok(rows.every(r => r.participants === 1 && r.cohort === 0));
+});
+
+test("single-source observations respect independent actors, public evidence and the time window", async () => {
+  const now = new Date(AT.getTime() + 72 * H);
+  const one = await story();
+  const owner = `${T}-observation-owner`;
+  const first = await signal(one, await source("observation-site", { owner }), -71);
+  await signal(one, await source("observation-channel", { owner }), -70);
+  const multi = await story();
+  await signal(multi, await source("observation-independent-a"), -71);
+  await signal(multi, await source("observation-independent-b"), -71);
+  for (const [key, options] of Object.entries({ withdrawn: { withdrawn: true }, mention: { role: "mention" }, composite: { composite: true }, standalone: { standalone: true } })) {
+    await signal(await story(), await source(`observation-${key}`), -71, options);
+  }
+  await signal(await story(), await source("observation-future"), -73);
+  await signal(await story(), await source("observation-stale"), -20);
+  const withheld = await signal(await story(), await source("observation-withheld"), -71);
+  await sql`UPDATE publications SET selected = true, visible_after = ${new Date(+now + H)} WHERE article_id = ${withheld}`;
+  const merged = await story();
+  await signal(merged, await source("observation-merged"), -71);
+  await sql`UPDATE stories SET merged_into = ${one} WHERE id = ${merged}`;
+  const rows = await loadHotObservations(now);
+  const [{ public_id: publicId }] = await sql`SELECT public_id::text FROM stories WHERE id = ${one}`;
+  assert.deepEqual(rows.map((row) => row.storyPublicId), [publicId]);
+  assert.equal(rows[0]!.reportCount, 2, "one owner can publish through two channels");
+  assert.equal(rows[0]!.sourceNames.length, 2);
+  assert.equal(rows[0]!.title, first, "latest public report supplies the title");
+  assert.equal(rows[0]!.latestAt, new Date(+AT + 71 * H).toISOString());
+  assert.ok(!("rank" in rows[0]!) && !("heat" in rows[0]!));
+  assert.deepEqual(await loadHotObservations(now, [one]), [], "already ranked stories stay out of observations");
+  await sql`UPDATE publications SET visibility = 'withdrawn' WHERE article_id = ${first}`;
+  assert.equal((await loadHotObservations(now))[0]!.reportCount, 1, "withdrawals take effect on the next read");
+});
+
+test("a withdrawn ranking representative cannot make its event resurface as a single-source observation", async () => {
+  const event = await story();
+  const ids = [
+    await signal(event, await source("withdrawn-ranking-a"), 1),
+    await signal(event, await source("withdrawn-ranking-b"), 1),
+  ];
+  const unranked = await story();
+  const unrankedReport = await signal(unranked, await source("unranked-observation"), 1);
+  ids.push(unrankedReport);
+  const at = new Date(Date.now() - H);
+  await sql`UPDATE story_signals SET observed_at = ${at} WHERE story_id = ANY(${[event, unranked]})`;
+  await sql`UPDATE articles SET discovered_at = ${at}, timeline_at = ${at} WHERE id = ANY(${ids})`;
+  await sql`UPDATE publications SET discovered_at = ${at}, timeline_at = ${at}, sort_at = ${at} WHERE article_id = ANY(${ids})`;
+  await computeHotRanking();
+  const entry = (await storedHotRanking())!.entries.find((item) => item.storyId === event)!;
+  assert.ok(entry?.representativeItemId);
+  const before = await loadHot();
+  assert.ok(before.entries.some((item) => item.story.publicId === entry.storyPublicId));
+  await sql`UPDATE publications SET visibility = 'withdrawn' WHERE article_id = ${entry.representativeItemId}`;
+  await computeHotRanking();
+  assert.ok(!(await storedHotRanking())!.entries.some((item) => item.storyId === event), "the immediate reranking drops the withdrawn event");
+  assert.equal(Number((await heatRows(new Date())).find((item) => Number(item.story_id) === event)?.participants), 1, "one public source still remains");
+  const after = await loadHot();
+  assert.ok(!after.entries.some((item) => item.story.publicId === entry.storyPublicId));
+  assert.ok(!after.observations.some((item) => item.storyPublicId === entry.storyPublicId), "ranking history keeps it out of the fallback after reranking too");
+  assert.ok(after.observations.some((item) => item.title === unrankedReport), "a normal single-source event that never ranked remains visible");
 });

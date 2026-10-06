@@ -70,11 +70,11 @@ export function SourceLink({ url, children }: { url: string; children: ReactNode
   try { valid = ["https:", "http:"].includes(new URL(url).protocol); } catch { /* An invalid source never becomes a clickable URL. */ }
   return valid ? <a href={url} target="_blank" rel="noopener noreferrer" className="break-words text-accent underline decoration-accent/30 underline-offset-4 hover:decoration-accent">{children}<span className="sr-only">（新窗口）</span></a> : <span>{children}</span>;
 }
-export function Panel({ title, aside, children, className = "" }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
-  return <section className={`min-w-0 rounded-card border border-line bg-surface ${className}`}><header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3"><h2 className="text-sm font-semibold text-ink">{title}</h2>{aside && <div className="text-xs text-ink-3">{aside}</div>}</header>{children}</section>;
+export function Panel({ title, aside, children, className = "", id }: { title: string; aside?: ReactNode; children: ReactNode; className?: string; id?: string }) {
+  return <section id={id} className={`min-w-0 rounded-card border border-line bg-surface ${className}`}><header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3"><h2 className="text-sm font-semibold text-ink">{title}</h2>{aside && <div className="text-xs text-ink-3">{aside}</div>}</header>{children}</section>;
 }
-export function Empty({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-5 py-7 text-center"><p className="text-sm font-semibold text-ink-2">{title}</p><p className="max-w-md text-sm leading-relaxed text-ink-3">{children}</p></div>;
+export function Empty({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+  return <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-5 py-7 text-center"><p className="text-sm font-semibold text-ink-2">{title}</p><p className="max-w-md text-sm leading-relaxed text-ink-3">{children}</p>{action && <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div>}</div>;
 }
 export function MarketShell({ title, description, asOf, children, privatePage = false }: { title: string; description: string; asOf?: string; children: ReactNode; privatePage?: boolean }) {
   const revalidator = useRevalidator();
@@ -82,7 +82,7 @@ export function MarketShell({ title, description, asOf, children, privatePage = 
     <PhoneBar title={title} back={{ to: "/more", label: "我的" }} />
     <header className="flex flex-wrap items-end justify-between gap-4 pb-5 pt-4 lg:pt-1">
       <div><p className="mono mb-1 text-xs tracking-widest text-accent">MARKET RESEARCH</p><h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-3">{description}</p></div>
-      <div className="flex items-center gap-3"><div className="text-right text-xs leading-5 text-ink-3"><p>{privatePage ? "持仓仅保存在此浏览器" : "快照更新（北京时间）"}</p>{!privatePage && <p className="mono text-ink-2">{dateTime(asOf)}</p>}</div><button type="button" className={buttonClass} disabled={revalidator.state !== "idle"} onClick={() => revalidator.revalidate()}>{revalidator.state === "idle" ? "刷新数据" : "刷新中…"}</button></div>
+      <div className="flex items-center gap-3"><div className="text-right text-xs leading-5 text-ink-3"><p>{privatePage ? "持仓仅保存在此浏览器" : "快照更新（北京时间）"}</p>{!privatePage && <p className="mono text-ink-2">{dateTime(asOf)}</p>}</div><button type="button" className={buttonClass} disabled={revalidator.state !== "idle"} title="重新读取已发布的市场快照" onClick={() => revalidator.revalidate()}>{revalidator.state === "idle" ? "刷新快照" : "读取中…"}</button></div>
     </header>
     <nav aria-label="市场研究" className="mb-5 flex gap-1 border-b border-line">
       {[{ to: "/markets", label: "市场总览" }, { to: "/markets/portfolio", label: "个人持仓" }, { to: "/markets/trades", label: "交易推荐" }].map((tab) => <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => `min-h-11 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${isActive ? "border-accent text-accent" : "border-transparent text-ink-3 hover:text-ink"}`}>{tab.label}</NavLink>)}

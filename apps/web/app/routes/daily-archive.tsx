@@ -1,5 +1,5 @@
 import { Link, useLoaderData } from "react-router";
-import type { ReportIndexEntry, ReportIndexResponse } from "@aihot/contracts/site";
+import type { ReportIndexEntry, ReportIndexResponse, ReportLatestPage } from "@aihot/contracts/site";
 import { SITE, withSubject } from "@aihot/site";
 import { apiGet, edgeTtl } from "../lib/api.server";
 import { archiveLd, pageMeta } from "../lib/seo";
@@ -9,13 +9,15 @@ import { ReportLayout } from "../features/report/ReportLayout";
 import { archiveGroups } from "../features/report/format";
 import { Rows, SectionPage } from "../features/report/ReportPaper";
 import { Nameplate } from "../features/report/Nameplate";
+import { Retrospective } from "../features/report/Retrospective";
 import type { Screen } from "../components/shell/screens";
 
 export const handle: Screen = { tab: "daily", name: "往期" };
 
 export async function loader({ request }: { request: Request }) {
   const { items: index } = await apiGet<ReportIndexResponse>("/api/site/reports/daily", { signal: request.signal });
-  return { index, today: beijingDate(Date.now()) };
+  const retrospective = index.length ? null : (await apiGet<ReportLatestPage>("/api/site/reports/daily/latest-page", { signal: request.signal })).retrospective;
+  return { index, retrospective, today: beijingDate(Date.now()) };
 }
 
 export function meta({ loaderData }: { loaderData?: { index: ReportIndexEntry[] } }) {
@@ -28,7 +30,7 @@ export function headers() {
 }
 
 export default function DailyArchive() {
-  const { index, today } = useLoaderData<typeof loader>();
+  const { index, retrospective, today } = useLoaderData<typeof loader>();
   const months = archiveGroups("daily", index);
   return (
     <ReportLayout kind="daily" index={index} current={null} today={today} back={{ to: "/daily", label: "日报" }} title="日报合订本">
@@ -48,6 +50,7 @@ export default function DailyArchive() {
           </div>
           <div aria-hidden="true" className="border-t border-line-strong" />
         </header>
+        {retrospective?.periods.length ? <Retrospective data={retrospective} embedded /> : null}
         {months.map((m) => (
           <SectionPage key={m.id} id={`m-${m.id}`} label={m.label}>
             <Rows items={m.entries}>

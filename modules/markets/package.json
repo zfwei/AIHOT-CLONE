@@ -9,6 +9,7 @@
   "dependencies": {
     "@aihot/backend": "*",
     "@aihot/contracts": "*",
+    "cheerio": "1.2.0",
     "fast-xml-parser": "5.11.1",
     "react": "19.3.0",
     "react-router": "8.4.0",

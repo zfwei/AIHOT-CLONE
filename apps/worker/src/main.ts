@@ -1,6 +1,6 @@
 // Worker process: queues and schedules for collection, processing, events, reports and ops, and the site's
 // modules (site/modules/server.ts).
-import { assertProductionSecrets } from "@aihot/backend/config";
+import { assertProductionSecrets, config } from "@aihot/backend/config";
 import { closeDb } from "@aihot/backend/db";
 import { getBoss, stopBoss, workModuleQueues } from "@aihot/backend/jobs/queue";
 import { installModules } from "@aihot/backend/modules";
@@ -19,7 +19,8 @@ assertProductionSecrets([["auth", "IMG_PROXY_SIGN_SECRET"]]);
 
 await ensureContentTargets();
 const boss = await getBoss();
-await registerContentJobs(boss);
+// Keep collected articles queued while model processing is disabled; do not consume their retries.
+if (config.modelCallsEnabled) await registerContentJobs(boss);
 if (process.env.COLLECT_ENABLED === "true") await registerSourceJobs(boss);
 await registerEventJobs(boss);
 await registerNotifyJobs(boss);

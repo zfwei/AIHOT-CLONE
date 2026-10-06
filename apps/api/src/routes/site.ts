@@ -18,6 +18,7 @@ import { listTopicSummaries, loadTopicPage } from "@aihot/backend/publication/to
 import { registerFeedback } from "./feedback.ts";
 import { loadHot, loadStoryDetail, resolveStory } from "@aihot/backend/publication/stories";
 import { listReports, loadReport, reportNavigation, loadReportNavigation, loadReportMonth, type ReportKind } from "@aihot/backend/publication/reports";
+import { loadReportRetrospective } from "@aihot/backend/publication/retrospective";
 import { looseQuery, sendJsonWithEtag, sendProblem } from "../http/respond.ts";
 
 type Handler = (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
@@ -174,7 +175,8 @@ export function registerSite(app: FastifyInstance) {
     if (!["daily", "weekly", "monthly"].includes(kind)) return sendProblem(req, reply, { status: 404, code: "not_found", detail: "unknown report kind" });
     const index = await listReports(kind as ReportKind);
     const report = index[0] ? await loadReport(kind as ReportKind, index[0].key) : null;
-    const body: ReportLatestPage = { index: reportNavigation(kind as ReportKind, index, report?.key ?? ""), report };
+    const body: ReportLatestPage = { index: reportNavigation(kind as ReportKind, index, report?.key ?? ""), report,
+      retrospective: report ? null : await loadReportRetrospective(kind as ReportKind) };
     return sendJsonWithEtag(req, reply, body, { etagPrefix: "report-latest", cacheControl: "public, max-age=60, s-maxage=60" });
   }));
 

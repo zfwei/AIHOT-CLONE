@@ -318,10 +318,15 @@ export async function loadTopicPage(slug: string, page: number, now?: Date): Pro
     currentSeats(recheck, at, [topic]),
   ]);
   const groupName = TOPIC_GROUPS.find((g) => g.key === topic.group)?.name ?? "";
+  const collected = page === 1 && rows.length === 0
+    ? await sql<ItemRow[]>`SELECT ${ITEM_COLUMNS} ${ITEM_FROM} WHERE ${listedCondition(at)} AND NOT p.selected AND ${inTopic(topic)}
+        ORDER BY p.timeline_at DESC, p.article_id DESC LIMIT 10`
+    : [];
   return {
     topic: { ...summarize(topic, seats, index.at, brands, live), groupName, poolTotal: pool },
     modules: Object.fromEntries(parts.map((part) => [part.name, part.part(live)])),
     items: rows.map(toFeedItemSummary),
+    collectedItems: collected.map(toFeedItemSummary),
     page,
     pageCount,
     pageSize: TOPIC_PAGE_SIZE,

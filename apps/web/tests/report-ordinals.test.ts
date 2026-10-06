@@ -30,16 +30,25 @@ function report(kind: ReportKind, key: string): ReportDetail {
 let web: ChildProcess;
 let origin: string;
 let logs = "";
+let showRetrospective = false;
+const retrospective = (kind: ReportKind) => ({
+  kind, asOf: "2026-10-06T00:00:00Z", limitPerPeriod: 12,
+  periods: [{ key: kind === "daily" ? "2026-09-30" : kind === "weekly" ? "2026-W40" : "2026-09", startDate: "2026-09-30", endDate: "2026-09-30", total: 1,
+    items: [{ itemId: "historical-item", title: "已核实的历史精选", summary: "真实来源的摘要仍可阅读。", sourceName: "官方来源", sourceUrl: "https://example.org/history", sourceIconUrl: null,
+      firstParty: true, publishedAt: "2026-09-30T12:00:00Z", recordedAt: "2026-10-06T00:00:00Z", available: true }] }],
+});
 const api = createServer((req, res) => {
   const path = new URL(req.url!, "http://api.local").pathname;
   res.setHeader("Content-Type", "application/json");
   if (path === "/api/site/meta") return res.end(JSON.stringify({ changelogVersion: "2026-09-28T12:00" }));
-  if (path === "/api/site/reports/daily") return res.end(JSON.stringify({ kind: "daily", items: index("daily").map((entry) => ({ ...entry, count: 1 })) }));
+  if (path === "/api/site/reports/daily") return res.end(JSON.stringify({ kind: "daily", items: showRetrospective ? [] : index("daily").map((entry) => ({ ...entry, count: 1 })) }));
   const match = /^\/api\/site\/reports\/(daily|weekly|monthly)\/(.+)$/.exec(path);
   if (match) {
     const kind = match[1] as ReportKind;
     const key = match[2]!;
-    if (key === "latest-page") return res.end(JSON.stringify({ index: index(kind), report: report(kind, keys[kind].at(-1)!) }));
+    if (key === "latest-page") return res.end(JSON.stringify(showRetrospective
+      ? { index: [], report: null, retrospective: retrospective(kind) }
+      : { index: index(kind), report: report(kind, keys[kind].at(-1)!), retrospective: null }));
     if (key.startsWith("navigation/")) return res.end(JSON.stringify({ items: index(kind) }));
     if (keys[kind].includes(key)) return res.end(JSON.stringify(report(kind, key)));
   }
@@ -121,4 +130,26 @@ test("the daily archive counts every issue, as the masthead numbers them", async
   const response = await fetch(`${origin}/daily/archive`);
   assert.equal(response.status, 200, logs);
   assert.match(masthead(await response.text()), /共\s*405\s*期/);
+});
+
+test("first-site report pages show dated retrospective summaries without inventing an issue", async () => {
+  showRetrospective = true;
+  try {
+    for (const path of ["/daily", "/weekly", "/monthly", "/daily/archive"]) {
+      const response = await fetch(`${origin}${path}`);
+      assert.equal(response.status, 200, logs);
+      const html = await response.text();
+      assert.match(html, /data-retrospective="true"/);
+      assert.match(html, /历史精选回顾/);
+      assert.match(html, /事后汇总/);
+      assert.match(html, /并非在所述日期出刊/);
+      assert.match(html, /已核实的历史精选/);
+      assert.match(html, /真实来源的摘要仍可阅读/);
+      assert.match(html, /原文发布/);
+      assert.match(html, /本站收录/);
+      assert.doesNotMatch(html, /第\s*1\s*期/);
+      assert.doesNotMatch(html, /"@type":"NewsArticle"/);
+      if (path.endsWith("archive")) assert.match(masthead(html), /共\s*0\s*期/);
+    }
+  } finally { showRetrospective = false; }
 });

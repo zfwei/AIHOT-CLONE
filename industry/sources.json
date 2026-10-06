@@ -13,7 +13,8 @@
       "tags": [],
       "site_fulltext": false,
       "syndicate_fulltext": false,
-      "enabled": true
+      "enabled": true,
+      "owner_entity_id": "federal-reserve"
     },
     {
       "id": "fed-speeches-testimony",
@@ -28,7 +29,8 @@
       "tags": [],
       "site_fulltext": false,
       "syndicate_fulltext": false,
-      "enabled": true
+      "enabled": true,
+      "owner_entity_id": "federal-reserve"
     },
     {
       "id": "ecb-official-news",
@@ -55,6 +57,54 @@
       "tier": "T1",
       "participation_mode": "editorial",
       "interval_minutes": 60,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
+    },
+    {
+      "id": "pboc-official-news",
+      "name": "中国人民银行 · 新闻发布",
+      "kind": "rss",
+      "config": {
+        "feedUrl": "https://www.pbc.gov.cn/goutongjiaoliu/113456/2986536/index.html",
+        "itemUrlPrefixRewrite": {
+          "from": "www.pbc.gov.cn/",
+          "to": "https://www.pbc.gov.cn/"
+        },
+        "summaryIsBody": true,
+        "detail": {
+          "titleSelector": "h2",
+          "titleAuthoritative": true,
+          "maxFetches": 15
+        }
+      },
+      "owner_entity_id": "pboc",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
+      "tags": [],
+      "site_fulltext": false,
+      "syndicate_fulltext": false,
+      "enabled": true
+    },
+    {
+      "id": "sse-official-news",
+      "name": "上海证券交易所 · 要闻",
+      "kind": "web_list",
+      "config": {
+        "url": "https://www.sse.com.cn/aboutus/mediacenter/hotandd/",
+        "itemSelector": ".sse_list_1 dl dd",
+        "linkSelector": "a",
+        "publishedAtSelector": "span",
+        "allowUrlPrefixes": [
+          "https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/"
+        ]
+      },
+      "owner_entity_id": "sse",
+      "tier": "T1",
+      "participation_mode": "editorial",
+      "interval_minutes": 120,
       "tags": [],
       "site_fulltext": false,
       "syndicate_fulltext": false,
