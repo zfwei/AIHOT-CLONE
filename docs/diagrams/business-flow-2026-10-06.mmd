@@ -1,0 +1,12 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#e6f2ee","primaryTextColor":"#202a30","primaryBorderColor":"#176b75","lineColor":"#607078","secondaryColor":"#f5ead7","tertiaryColor":"#eef1ed","fontFamily":"PingFang SC, Microsoft YaHei, sans-serif","fontSize":"16px","cScale0":"#dcece7","cScaleLabel0":"#202a30","cScale1":"#e4ecf4","cScaleLabel1":"#202a30","cScale2":"#f0e6d6","cScaleLabel2":"#202a30","cScale3":"#ebe4f0","cScaleLabel3":"#202a30","cScale4":"#e4e9d8","cScaleLabel4":"#202a30","cScale5":"#dfecef","cScaleLabel5":"#202a30"}}}%%
+flowchart TD
+  A["管理员请求官方日频采集（美债 / 日债 / ECB宏观曲线）"] --> B{"来源已确认且采集阀开启？"}
+  B -->|否| C["409：不联网"]
+  B -->|是| D["202：任务已入队，尚未完成"]
+  D --> E["Worker 再次检查采集阀"]
+  E --> F["读取官方 XML 或 CSV / 限时限量"]
+  F --> G["解析真实期限点 / 区分观测日与可用时点"]
+  G --> H{"数据与单位校验通过？"}
+  H -->|否| I["失败记录：保留旧快照"]
+  H -->|是| J["合并历史 / 原子发布 / 审计"]
+  J --> K["读者刷新：展示来源与有效期"]

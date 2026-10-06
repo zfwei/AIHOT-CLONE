@@ -2,7 +2,7 @@
 // items through these columns and views; which rows are public is decided by scope.ts.
 import type { CategoryKey, ChannelKey } from "@aihot/contracts/taxonomy";
 import type { FeedItemSummary, ItemSummary, MediaView, XPostView } from "@aihot/contracts/site";
-import { POLICY } from "@aihot/site";
+import { POLICY, PUBLIC_CATEGORIES } from "@aihot/site";
 import { sql, type Db } from "../db.ts";
 import { proxiedImage, proxiedImageSet } from "../media/imgproxy.ts";
 import { displayTags, publicSourceName } from "./rules.ts";
@@ -76,8 +76,10 @@ export function channelCondition(channel: ChannelKey | null | undefined) {
 
 export function categoryCondition(category: CategoryKey | null | undefined, v1 = false) {
   if (!category) return sql``;
-  // v1 and RSS publish opinion as tip.
-  if (v1 && category === "tip") return sql`AND p.category IN ('tip', 'opinion')`;
+  if (v1) {
+    const merged = Object.entries(PUBLIC_CATEGORIES.merge).filter(([, target]) => target === category).map(([source]) => source);
+    if (merged.length) return sql`AND p.category = ANY(${[category, ...merged]}::text[])`;
+  }
   return sql`AND p.category = ${category}`;
 }
 

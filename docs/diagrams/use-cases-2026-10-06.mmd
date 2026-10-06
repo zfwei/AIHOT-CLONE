@@ -1,0 +1,12 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#e6f2ee","primaryTextColor":"#202a30","primaryBorderColor":"#176b75","lineColor":"#607078","secondaryColor":"#f5ead7","tertiaryColor":"#eef1ed","fontFamily":"PingFang SC, Microsoft YaHei, sans-serif","fontSize":"16px","cScale0":"#dcece7","cScaleLabel0":"#202a30","cScale1":"#e4ecf4","cScaleLabel1":"#202a30","cScale2":"#f0e6d6","cScaleLabel2":"#202a30","cScale3":"#ebe4f0","cScaleLabel3":"#202a30","cScale4":"#e4e9d8","cScaleLabel4":"#202a30","cScale5":"#dfecef","cScaleLabel5":"#202a30"}}}%%
+flowchart LR
+  Reader["公开读者"] --> Overview(["查看四市场与真实来源"])
+  Reader --> Risk(["逐项核对四因子证据"])
+  Reader --> Ideas(["查看条件式交易研究"])
+  Reader --> Portfolio(["本地持仓与风险预算"])
+  Admin["管理员"] --> Import(["核验并发布 JSON 快照"])
+  Admin --> Collect(["在采集阀开启时提交任务"])
+  Admin --> Audit(["核对运行与发布审计"])
+  Source["官方数据源"] --> Collect
+  Portfolio -.-> Boundary["隐私边界：不上传持仓"]
+  Ideas -.-> NoTrade["能力边界：无自动交易"]

@@ -1,0 +1,18 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#e6f2ee","primaryTextColor":"#202a30","primaryBorderColor":"#176b75","lineColor":"#607078","secondaryColor":"#f5ead7","tertiaryColor":"#eef1ed","fontFamily":"PingFang SC, Microsoft YaHei, sans-serif","fontSize":"16px","cScale0":"#dcece7","cScaleLabel0":"#202a30","cScale1":"#e4ecf4","cScaleLabel1":"#202a30","cScale2":"#f0e6d6","cScaleLabel2":"#202a30","cScale3":"#ebe4f0","cScaleLabel3":"#202a30","cScale4":"#e4e9d8","cScaleLabel4":"#202a30","cScale5":"#dfecef","cScaleLabel5":"#202a30"}}}%%
+sequenceDiagram
+  actor Admin as 管理员
+  participant API as API
+  participant Queue as pg-boss / Worker
+  participant Source as 官方来源（美债 / 日债 / ECB宏观曲线）
+  participant DB as PostgreSQL
+  Admin->>API: POST /api/admin/markets/collect + source + CSRF + reason
+  API->>API: 会话 / 来源确认 / 采集阀
+  API->>DB: 入队和操作审计（事务）
+  API-->>Admin: 202 + jobId（不表示已采集）
+  Queue->>Queue: 再检查 COLLECT_ENABLED
+  Queue->>Source: 官方 XML 或 CSV（限时限量）
+  Source-->>Queue: 真实观测值
+  Queue->>DB: 校验 / 合并快照 / 发布审计（事务）
+  Admin->>API: GET /api/v1/markets
+  API->>DB: 经 publication 层读取
+  API-->>Admin: 快照 + 来源 + 接入状态

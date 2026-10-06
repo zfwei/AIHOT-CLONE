@@ -11,12 +11,13 @@
  * feedLabel 是分类 RSS 标题里的名字（不写就用 label）。公开接口、RSS 和 MCP 里要把一类并进另一类发布，写在站点设置里（site/site.ts 的 PUBLIC_CATEGORIES）。
  */
 export const CATEGORIES = [
-  { key: "ai-models", label: "模型", feedLabel: "AI 模型", section: "模型发布/更新", guide: "模型本身的发布、版本、权重开放、能力或价格变化，以及既有榜单上的模型成绩。公布一次跑分不是发布新基准，也不是教程。" },
-  { key: "ai-products", label: "产品", feedLabel: "AI 产品", section: "产品发布/更新", guide: "可使用的 AI 产品、功能、应用、工具、API、平台和工程组件的发布更新。模型厂商发布的推理框架、算子库、硬件适配组件仍是产品，不能因为厂商名归成模型。" },
-  { key: "industry", label: "行业", feedLabel: "行业动态", section: "行业动态", guide: "已发生的公司经营、融资并购、人事、合作、诉讼、政策、真实安全事故及调查进展。新闻由当事人发帖、带有态度，也不因此变成观点。" },
-  { key: "paper", label: "论文", feedLabel: "论文", section: "论文研究", guide: "以新研究方法、实验设计与发现为核心的论文、技术报告、新基准或研究数据集。系统性红队实验属于研究；既有榜单成绩归模型，真实事故的新闻调查归行业。" },
-  { key: "tip", label: "教程", section: "技巧与观点", guide: "读者可以照着使用的方法、提示词、工具用法、工程实践复盘与技术讲解。重点是可复用的做法；单纯发布工具归产品，只有态度和预测而无做法归观点。", commentary: true },
-  { key: "opinion", label: "观点", section: "技巧与观点", guide: "重点是作者的解释、判断、主张、预测、评论或访谈观点。讨论市场不自动归行业，作者是名人不自动归观点。", commentary: true },
+  {"key": "a-shares", "label": "A股", "section": "A股", "guide": "境内上市公司的财报、经营、分红、融资和 A 股市场变化。"},
+  {"key": "us-stocks", "label": "美股", "section": "美股", "guide": "美国上市公司的财报、经营、估值和美股市场变化。"},
+  {"key": "us-treasury", "label": "美债", "section": "美债", "guide": "美国国债发行、拍卖、收益率曲线和期限溢价；收益率不能当作债券价格。"},
+  {"key": "global-bonds", "label": "全球国债", "section": "全球国债", "guide": "美国以外的主权国债及跨国比较，必须标明国家、币种与期限。"},
+  {"key": "macro", "label": "宏观政策", "section": "宏观政策", "guide": "央行政策、通胀、就业、财政、资金市场和跨资产流动性。"},
+  {"key": "trade-watch", "label": "交易观察", "section": "交易观察", "guide": "市场结构、估值、拥挤度、流动性和情绪的证据分析；没有交易条件的观点归这里。", "commentary": true},
+  {"key": "trade-ideas", "label": "交易推荐", "section": "交易推荐", "guide": "有明确标的、条件、失效点和期限的交易研究。禁止把预测写成已发生事实；不是自动下单或收益承诺。", "commentary": true},
 ] as const satisfies ReadonlyArray<{ key: string; label: string; feedLabel?: string; section: string; guide: string; commentary?: true }>;
 
 /**
@@ -24,44 +25,30 @@ export const CATEGORIES = [
  * category 是类别，tag 是标签，两者都对上才算；unit 接在数字后面。
  * 没有这样一类的行业设成 null，报头就不显示这个数。
  */
-export const RELEASE: { category: string; tag: string; unit: string } | null = { category: "ai-models", tag: "模型发布", unit: "个新模型" };
+export const RELEASE: { category: string; tag: string; unit: string } | null = null;
 
 /** 周报月报的总述可以直接写、不必在报道里找到出处的行业通用词（小写）。站名会自动算进去。 */
-export const PLAIN_TERMS: readonly string[] = ["ai", "api", "llm", "gpu", "agi", "ceo", "ipo"];
+export const PLAIN_TERMS: readonly string[] = ["a股", "美股", "国债", "gdp", "cpi", "pce", "pmi", "eps", "etf", "ipo", "pe", "pb", "roe", "sofr", "api", "ceo"];
 
 /**
  * 内容理解一步给每篇资料判的“内容类型”（写在 prompts/content-understanding.md 里，改了类型要同步改那份提示词）。
  * 评分提示词（prompts/selection-score.md）按类型给五个维度不同的权重。
  */
-export const ITEM_TYPES = ["model_release", "product_launch", "tool_or_prompt", "research_paper", "industry_event", "opinion_analysis", "tutorial_explainer"] as const;
+export const ITEM_TYPES = ["earnings_release", "market_move", "trading_framework", "research_report", "policy_event", "opinion_analysis", "risk_explainer"] as const;
 
 // ── 标签词表 ────────────────────────────────────────────────────────────────────────────
 
 /** 每篇资料的第一个标签必须是这些“分类标签”之一。 */
-export const CATEGORY_TAGS = [
-  "产品更新", "模型发布", "论文/研究", "开源/仓库", "教程/实践", "现象/趋势", "大佬观点", "评测/基准", "安全/对齐", "行业动态", "政策/监管",
-  "非AI/通用工具", "其他",
-] as const;
-
-/** 可选的主题标签。 */
-export const TOPIC_TAGS = [
-  "Agent", "编码", "推理", "多模态", "语音", "视频", "图像生成", "RAG", "端侧", "数据/训练", "搜索", "部署/工程", "开源生态", "具身智能", "MCP/工具调用",
-] as const;
-
-/** 可选的实体标签（公司、机构、平台）。 */
-export const ENTITY_TAGS = ["OpenAI", "Anthropic", "DeepSeek", "DeepMind", "Google", "Meta", "Microsoft", "xAI", "Hugging Face", "GitHub", "arXiv"] as const;
-
-/** 模型常写的近义词，统一成词表里的写法。 */
+export const CATEGORY_TAGS = ["财报/业绩", "市场行情", "研究报告", "交易方法", "风险管理", "现象/趋势", "观点分析", "估值/比较", "风险事件", "公司动态", "政策/监管", "非金融/其他", "其他"] as const;
+export const TOPIC_TAGS = ["A股", "美股", "美债", "全球国债", "财报", "通胀", "就业", "利率", "流动性", "估值", "机构持仓", "市场情绪", "收益率曲线", "汇率", "交易策略"] as const;
+export const ENTITY_TAGS = ["美联储", "美国财政部", "中国人民银行", "欧洲央行", "日本财务省", "SEC", "上交所", "深交所", "NVIDIA", "Apple", "Google", "Meta", "Microsoft", "OpenAI", "Anthropic", "DeepSeek", "DeepMind", "xAI", "Hugging Face", "GitHub", "arXiv"] as const;
 export const TAG_SYNONYMS: Readonly<Record<string, string>> = {
-  "教程/玩法": "教程/实践", "技巧/最佳实践": "教程/实践", "合作/生态": "行业动态", "融资/收购": "行业动态", "公司动态": "行业动态",
-  合作: "行业动态", 生态: "行业动态", 融资: "行业动态", 收购: "行业动态", 投资: "行业动态", 并购: "行业动态",
-  政策: "政策/监管", 监管: "政策/监管", 法规: "政策/监管", 安全: "安全/对齐", 对齐: "安全/对齐",
-  论文: "论文/研究", 研究: "论文/研究", paper: "论文/研究", papers: "论文/研究",
-  "open-source": "开源/仓库", 开源: "开源/仓库", 仓库: "开源/仓库", repo: "开源/仓库",
-  教程: "教程/实践", 玩法: "教程/实践", 指南: "教程/实践", 技巧: "教程/实践", 最佳实践: "教程/实践", 实践: "教程/实践",
-  产品: "产品更新", 更新: "产品更新", 发布: "模型发布", 模型: "模型发布", 趋势: "现象/趋势", 现象: "现象/趋势", 观点: "大佬观点",
-  视频生成: "视频", 非ai: "非AI/通用工具", "non-ai": "非AI/通用工具", 通用工具: "非AI/通用工具", 工程工具: "非AI/通用工具",
-  安全扫描: "非AI/通用工具", devops: "非AI/通用工具", 行业: "行业动态", 动态: "行业动态",
+  财报: "财报/业绩", 业绩: "财报/业绩", 盈利: "财报/业绩", 行情: "市场行情",
+  合作: "公司动态", 融资: "公司动态", 收购: "公司动态", 并购: "公司动态", "融资/收购": "公司动态",
+  政策: "政策/监管", 监管: "政策/监管", 法规: "政策/监管",
+  研究: "研究报告", 论文: "研究报告", paper: "研究报告", papers: "研究报告",
+  教程: "风险管理", 实践: "风险管理", 指南: "风险管理", "教程/玩法": "风险管理",
+  观点: "观点分析", 趋势: "现象/趋势", 估值: "估值/比较", 风险: "风险事件",
 };
 
 // ── 公司与主体 ──────────────────────────────────────────────────────────────────────────
@@ -72,6 +59,15 @@ export const TAG_SYNONYMS: Readonly<Record<string, string>> = {
  * 把事实的主体对到发布方时也认它们。
  */
 export const ENTITIES: Record<string, { name: string; displayTag: string | null; aliases: string[]; otherNames?: string[] }> = {
+  fed: { name: "美联储", displayTag: "美联储", aliases: ["Federal Reserve", "FOMC", "美联储"] },
+  treasury: { name: "美国财政部", displayTag: "美国财政部", aliases: ["U.S. Treasury", "美国财政部"] },
+  pboc: { name: "中国人民银行", displayTag: "中国人民银行", aliases: ["PBOC", "中国人民银行", "央行"] },
+  ecb: { name: "欧洲央行", displayTag: "欧洲央行", aliases: ["ECB", "European Central Bank", "欧洲央行"] },
+  "japan-mof": { name: "日本财务省", displayTag: "日本财务省", aliases: ["Japan Ministry of Finance", "日本财务省"] },
+  sec: { name: "SEC", displayTag: "SEC", aliases: ["SEC", "美国证券交易委员会"] },
+  sse: { name: "上交所", displayTag: "上交所", aliases: ["上海证券交易所", "上交所"] },
+  szse: { name: "深交所", displayTag: "深交所", aliases: ["深圳证券交易所", "深交所"] },
+  apple: { name: "Apple", displayTag: "Apple", aliases: ["Apple", "苹果公司"] },
   "world-labs": { name: "World Labs", displayTag: null, aliases: ["World Labs"] },
   "thinking-machines": { name: "Thinking Machines Lab", displayTag: null, aliases: ["Thinking Machines"] },
   amd: { name: "AMD", displayTag: null, aliases: ["AMD", "Advanced Micro Devices"] },
@@ -97,6 +93,10 @@ export const ENTITIES: Record<string, { name: string; displayTag: string | null;
  * 行业没有这个问题时可以留空数组。
  */
 export const IDENTITY_LEXICON: ReadonlyArray<{ id: string; name: string; patterns: RegExp[] }> = [
+  { id: "fed", name: "美联储", patterns: [/\bfederal reserve\b|\bfomc\b|美联储/i] },
+  { id: "treasury", name: "美国财政部", patterns: [/美国财政部|\bu\.?s\.? treasury\b/i] },
+  { id: "pboc", name: "中国人民银行", patterns: [/中国人民银行|\bpboc\b/i] },
+  { id: "ecb", name: "欧洲央行", patterns: [/欧洲央行|\becb\b|european central bank/i] },
   { id: "openai", name: "OpenAI", patterns: [/openai|chatgpt|\bgpt-?[o\d]|\bsora\b|\bcodex\b/i] },
   { id: "anthropic", name: "Anthropic", patterns: [/anthropic|\bclaude\b/i, /\b(?:opus|sonnet|haiku)\s*\d+(?:[.\-]\d+)*\b/i, /\bfable\s*\d+(?:[.\-]\d+)*\b|\bmythos\b/i] },
   { id: "google", name: "Google / Gemini", patterns: [/google|deepmind|\bgemini\b|notebooklm|\bveo\s?\d|\bAlphaFold\b|\bAMIE\b/i] },
@@ -126,7 +126,7 @@ export const IDENTITY_LEXICON: ReadonlyArray<{ id: string; name: string; pattern
   { id: "windsurf", name: "Windsurf", patterns: [/windsurf/i] },
   { id: "devin", name: "Devin", patterns: [/\bdevin\b/i] },
   { id: "manus", name: "Manus", patterns: [/\bmanus\b/i] },
-  { id: "apple", name: "Apple AI", patterns: [/\bapple\s?(intelligence|silicon|ai)\b|苹果(智能|\s?AI)/i] },
+  { id: "apple", name: "Apple", patterns: [/\bapple\b|苹果公司/i, /\bapple\s?(intelligence|silicon|ai)\b|苹果(智能|\s?AI)/i] },
   { id: "amazon", name: "Amazon / AWS", patterns: [/amazon|\baws\b|亚马逊/i] },
   { id: "baidu", name: "百度文心", patterns: [/百度|baidu|文心|\bernie\s?bot\b/i] },
 ];

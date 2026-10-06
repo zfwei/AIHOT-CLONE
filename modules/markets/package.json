@@ -1,0 +1,18 @@
+{
+  "name": "@aihot/markets",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./web": "./web.tsx",
+    "./*": "./*.ts"
+  },
+  "dependencies": {
+    "@aihot/backend": "*",
+    "@aihot/contracts": "*",
+    "fast-xml-parser": "5.11.1",
+    "react": "19.3.0",
+    "react-router": "8.4.0",
+    "zod": "4.6.5",
+    "fastify": "5.12.5"
+  }
+}

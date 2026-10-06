@@ -1,0 +1,16 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#e6f2ee","primaryTextColor":"#202a30","primaryBorderColor":"#176b75","lineColor":"#607078","secondaryColor":"#f5ead7","tertiaryColor":"#eef1ed","fontFamily":"PingFang SC, Microsoft YaHei, sans-serif","fontSize":"16px","cScale0":"#dcece7","cScaleLabel0":"#202a30","cScale1":"#e4ecf4","cScaleLabel1":"#202a30","cScale2":"#f0e6d6","cScaleLabel2":"#202a30","cScale3":"#ebe4f0","cScaleLabel3":"#202a30","cScale4":"#e4e9d8","cScaleLabel4":"#202a30","cScale5":"#dfecef","cScaleLabel5":"#202a30"}}}%%
+flowchart TD
+  A(["打开个人持仓页"]) --> B["读取公开价格与本地持仓"]
+  B --> C["用户填写股票 / 数量 / 平均成本"]
+  C --> D{"输入有效且主动保存？"}
+  D -->|否| E["提示错误 / 保留已有数据"]
+  D -->|是| F["只写浏览器 localStorage"]
+  F --> G{"同口径股票价格有效？"}
+  G -->|否| H["市值 / 盈亏 / 集中度未知"]
+  G -->|是| I["按币种计算 / 不跨币种求和"]
+  H --> J["用户填写风险预算参数"]
+  I --> J
+  J --> K{"资金 / 风险比例 / 入场 / 止损 / 手数完整？"}
+  K -->|否| L["提示需要填写"]
+  K -->|是| M["本地计算数量与计划风险"]
+  M --> N(["用户自行判断；无下单接口"])

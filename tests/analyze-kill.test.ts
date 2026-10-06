@@ -20,7 +20,7 @@ let holdPrefilter: { asked: ReturnType<typeof gate<void>>; answer: ReturnType<ty
 const provider = await stub(async (_hit, request) => {
   const body = JSON.parse(request.body);
   const system = String(body.messages[0]?.content ?? "");
-  const step: Step = system.includes("宽召回的AI相关性预筛") ? "prefilter"
+  const step: Step = system.includes("宽召回的金融市场相关性预筛") ? "prefilter"
     : system.includes("事件注意力评分器") ? "score" : system.includes("资料结构化助手") ? "structure" : "understand";
   calls.push(step);
   if (step === "prefilter" && holdPrefilter) {
@@ -30,8 +30,8 @@ const provider = await stub(async (_hit, request) => {
   }
   const content = step === "prefilter" ? { label: "PASS", reason: "AI model release" }
     : step === "score" ? { attentionScore: 80 }
-      : step === "structure" ? { category: "ai-models", tags: ["模型发布"], subjects: [], fact: { title: "新模型发布" } }
-        : { itemType: "model_release", authorRole: "principal", tags: ["模型发布"], editorialJudgment: "模型有明确的能力提升", titleZh: `新模型发布 ${T}`, summaryZh: "模型发布并提供了评测和价格。" };
+      : step === "structure" ? { category: "us-stocks", tags: ["财报/业绩"], subjects: [], fact: { title: "季度业绩发布" } }
+        : { itemType: "earnings_release", authorRole: "principal", tags: ["财报/业绩"], editorialJudgment: "公司盈利有明确变化", titleZh: `季度业绩发布 ${T}`, summaryZh: "公司披露财报并提供盈利指引。" };
   return { id: `stub-${calls.length}`, choices: [{ message: { content: JSON.stringify(content) } }], usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } };
 });
 

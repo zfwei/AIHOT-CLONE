@@ -1,0 +1,22 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#e6f2ee","primaryTextColor":"#202a30","primaryBorderColor":"#176b75","lineColor":"#607078","secondaryColor":"#f5ead7","tertiaryColor":"#eef1ed","fontFamily":"PingFang SC, Microsoft YaHei, sans-serif","fontSize":"16px","cScale0":"#dcece7","cScaleLabel0":"#202a30","cScale1":"#e4ecf4","cScaleLabel1":"#202a30","cScale2":"#f0e6d6","cScaleLabel2":"#202a30","cScale3":"#ebe4f0","cScaleLabel3":"#202a30","cScale4":"#e4e9d8","cScaleLabel4":"#202a30","cScale5":"#dfecef","cScaleLabel5":"#202a30"}}}%%
+flowchart LR
+  subgraph Production["数据生产"]
+    direction TB
+    S["官方数据源"] -->|采集阀开启| W["官方日频适配器（美债 / 日债 / ECB宏观曲线）<br/>ECB仅作宏观信息展示"]
+    A["管理员：会话 + CSRF"] -->|核验 JSON| P["市场快照发布 + 审计"]
+    W --> P
+  end
+  subgraph PublicRead["公开读取"]
+    direction TB
+    DB[("settings：公开快照")] --> R["publication/module-data"]
+    R --> API["GET /api/v1/markets"]
+  end
+  subgraph Browser["读者浏览器"]
+    direction TB
+    WEB["React Router SSR / 市场页面"] --> READER["公开研究读者"]
+    WEB -->|主动保存| LOCAL[("localStorage：个人持仓")]
+    LOCAL --> CALC["本地估值 / 风险预算"]
+  end
+  P --> DB
+  API --> WEB
+  API -->|公开价格| CALC

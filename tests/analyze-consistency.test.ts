@@ -12,7 +12,7 @@ const sourceId = `analysis-consistency-${tag()}`;
 let hold: { entered: ReturnType<typeof gate<void>>; release: ReturnType<typeof gate<void>> } | null = null;
 const provider = await stub(async (_hit, request) => {
   const system = String(JSON.parse(request.body).messages[0]?.content ?? "");
-  const prefilter = system.includes("宽召回的AI相关性预筛");
+  const prefilter = system.includes("宽召回的金融市场相关性预筛");
   if (prefilter && hold) {
     const waiting = hold;
     waiting.entered.open();
@@ -20,8 +20,8 @@ const provider = await stub(async (_hit, request) => {
   }
   const content = prefilter ? { label: "PASS", reason: "local fixture" }
     : system.includes("事件注意力评分器") ? { attentionScore: 80 }
-    : system.includes("资料结构化助手") ? { category: "ai-models", tags: [], subjects: [], scope: "single", fact: null }
-    : { itemType: "model_release", authorRole: "principal", tags: ["模型发布"], editorialJudgment: "模型能力提升", titleZh: "实验室发布新模型", summaryZh: "实验室发布新模型，并公布了评测结果与价格。" };
+    : system.includes("资料结构化助手") ? { category: "us-stocks", tags: [], subjects: [], scope: "single", fact: null }
+    : { itemType: "earnings_release", authorRole: "principal", tags: ["财报/业绩"], editorialJudgment: "公司盈利变化", titleZh: "公司披露财报", summaryZh: "公司披露财报，并公布了现金流与盈利指引。" };
   return { choices: [{ message: { content: JSON.stringify(content) } }] };
 });
 pointModels(provider.url);
