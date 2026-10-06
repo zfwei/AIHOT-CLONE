@@ -3,6 +3,7 @@ import { NavLink, useRevalidator } from "react-router";
 import { PhoneBar } from "@aihot/web/components/shell/PhoneBar";
 import type { AssessmentState, MarketId, RiskFactor, Quote } from "../domain.ts";
 import { DAILY_MAX_AGE_MS } from "../analysis.ts";
+import { AutoRefresh } from "@aihot/web/components/ui/AutoRefresh";
 
 export const MARKETS: Array<{ id: MarketId; label: string; short: string; category: string; note: string }> = [
   { id: "a-shares", label: "A 股", short: "CN EQUITY", category: "a-shares", note: "中国内地股票 · CNY" },
@@ -82,8 +83,9 @@ export function MarketShell({ title, description, asOf, children, privatePage = 
     <PhoneBar title={title} back={{ to: "/more", label: "我的" }} />
     <header className="flex flex-wrap items-end justify-between gap-4 pb-5 pt-4 lg:pt-1">
       <div><p className="mono mb-1 text-xs tracking-widest text-accent">MARKET RESEARCH</p><h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-3">{description}</p></div>
-      <div className="flex items-center gap-3"><div className="text-right text-xs leading-5 text-ink-3"><p>{privatePage ? "持仓仅保存在此浏览器" : "快照更新（北京时间）"}</p>{!privatePage && <p className="mono text-ink-2">{dateTime(asOf)}</p>}</div><button type="button" className={buttonClass} disabled={revalidator.state !== "idle"} title="重新读取已发布的市场快照" onClick={() => revalidator.revalidate()}>{revalidator.state === "idle" ? "刷新快照" : "读取中…"}</button></div>
+      <div className="flex items-center gap-3"><div className="text-right text-xs leading-5 text-ink-3"><p>{privatePage ? "持仓仅保存在此浏览器" : "快照更新（北京时间）"}</p>{!privatePage && <p className="mono text-ink-2">{dateTime(asOf)}</p>}</div>{privatePage && <button type="button" className={buttonClass} disabled={revalidator.state !== "idle"} title="重新读取已发布的市场快照" onClick={() => revalidator.revalidate()}>{revalidator.state === "idle" ? "刷新快照" : "读取中…"}</button>}</div>
     </header>
+    {!privatePage && <AutoRefresh />}
     <nav aria-label="市场研究" className="mb-5 flex gap-1 border-b border-line">
       {[{ to: "/markets", label: "市场总览" }, { to: "/markets/portfolio", label: "个人持仓" }, { to: "/markets/trades", label: "交易推荐" }].map((tab) => <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => `min-h-11 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${isActive ? "border-accent text-accent" : "border-transparent text-ink-3 hover:text-ink"}`}>{tab.label}</NavLink>)}
     </nav>

@@ -155,8 +155,12 @@ test('unchanged pool and timeline revalidate with 304 while a content change ret
     const same = await app.inject({ method: 'GET', url: path, headers: { 'if-none-match': String(first.headers.etag) } });
     assert.equal(same.statusCode, 304, path);
     assert.equal(same.body, '');
-    await sql`UPDATE publications SET title = title || ' edited', updated_at = now() WHERE article_id = ${id(1)}`;
+    const body = first.json();
+    const visibleId = body.items?.[0]?.id ?? body.cards?.[0]?.item.id;
+    assert.ok(visibleId, 'change an item actually present in the cached response');
+    await sql`UPDATE publications SET title = title || ' edited', updated_at = now() WHERE article_id = ${visibleId}`;
     const changed = await app.inject({ method: 'GET', url: path, headers: { 'if-none-match': String(first.headers.etag) } });
     assert.equal(changed.statusCode, 200, path);
+    assert.notEqual(changed.body, first.body);
   }
 });

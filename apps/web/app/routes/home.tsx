@@ -7,6 +7,7 @@ import type { Screen } from "../components/shell/screens";
 import { Timeline } from "../features/feed/Timeline";
 import { HotTopics } from "../features/feed/HotTopics";
 import { ActiveFilters, CategoryTabs, FeedBar, SearchField } from "../features/feed/Filters";
+import { AutoRefresh } from "../components/ui/AutoRefresh";
 
 export const handle: Screen = { tab: "featured", name: "精选" };
 
@@ -46,6 +47,8 @@ export default function Home() {
           <SearchField keep={{ category: filters.category }} />
         </div>
       </div>
+
+      <AutoRefresh pauseWhileReading />
 
       {data.hot && <HotTopics entries={data.hot} />}
 

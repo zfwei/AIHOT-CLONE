@@ -6,6 +6,7 @@ import { pageMeta } from "../lib/seo";
 import { monthDayTime } from "../lib/format";
 import { Badge } from "../components/ui/Badge";
 import { EmptyState } from "../components/ui/Page";
+import { AutoRefresh } from "../components/ui/AutoRefresh";
 import { IconChevronDown, IconInfo } from "../components/icons";
 import { Sparkline } from "../features/hot/Sparkline";
 import { Faces } from "../features/hot/Faces";
@@ -279,6 +280,8 @@ export default function HotPage() {
           </p>
         )}
       </header>
+
+      <AutoRefresh intervalMs={120_000} pauseWhileReading />
 
       {!lead ? (
         <div className="card rounded-sheet">

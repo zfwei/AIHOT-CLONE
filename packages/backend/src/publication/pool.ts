@@ -205,10 +205,9 @@ export async function loadPool(query: PoolQuery): Promise<PoolResponse> {
 
   const { rows, total } = q ? await withSearchCapacity(run) : await run(sql);
   const today = beijingDate(now);
-  const meta = one(await sql<{ today_count: number; updated_at: Date | null }[]>`
-    SELECT (SELECT count(*) FROM publications p
-      WHERE ${listedCondition(now)} AND p.timeline_at >= ${beijingMidnight(today)} ${filters}) AS today_count,
-      (SELECT max(p.updated_at) FROM publications p WHERE p.eligible) AS updated_at`);
+  const meta = one(await sql<{ today_count: number }[]>`
+    SELECT count(*) AS today_count FROM publications p
+      WHERE ${listedCondition(now)} AND p.timeline_at >= ${beijingMidnight(today)} ${filters}`);
 
   const holders = await seatHolders(rows, now);
   return {
@@ -218,6 +217,5 @@ export async function loadPool(query: PoolQuery): Promise<PoolResponse> {
     pageCount: Math.min(POOL_MAX_PAGES, Math.max(1, Math.ceil(total / POOL_PAGE_SIZE))),
     total,
     todayCount: Number(meta.today_count),
-    freshness: (meta.updated_at ?? now).toISOString(),
   };
 }

@@ -115,7 +115,6 @@ export interface PoolResponse {
   pageCount: number;
   total: number;
   todayCount: number;
-  freshness: string;
 }
 
 export interface OutlineEntry {
