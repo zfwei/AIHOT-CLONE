@@ -20,8 +20,9 @@ SPEC.loader.exec_module(collector)
 UTC = timezone.utc
 CN_STOCK = collector.INSTRUMENTS["akshare"][2]
 CN_INDEX = collector.INSTRUMENTS["akshare"][0]
-US_STOCK = collector.INSTRUMENTS["yfinance"][2]
-HK_INDEX, KR_INDEX, JP_INDEX = collector.INSTRUMENTS["yfinance"][5:]
+YAHOO_INSTRUMENTS = {instrument["id"]: instrument for instrument in collector.INSTRUMENTS["yfinance"]}
+US_STOCK = YAHOO_INSTRUMENTS["aapl"]
+HK_INDEX, KR_INDEX, JP_INDEX = (YAHOO_INSTRUMENTS[key] for key in ["hk-hsi", "kr-kospi", "jp-nikkei225"])
 
 
 def moment(text):
@@ -262,6 +263,17 @@ class DailyEquityTests(unittest.TestCase):
         for symbol in ["^HSI", "^KS11", "^N225"]:
             self.assertEqual(calls[symbol]["end"], "2026-06-09")
 
+    def test_russell_and_semiconductors_use_us_closes_and_unadjusted_points(self):
+        sessions = {date(2026, 10, 5): moment("2026-10-05T20:00:00Z"), date(2026, 10, 6): moment("2026-10-06T20:00:00Z")}
+        for key, symbol in [("us-russell2000", "^RUT"), ("us-sox", "^SOX")]:
+            instrument = YAHOO_INSTRUMENTS[key]
+            self.assertEqual(instrument["symbol"], symbol)
+            quote, history = collector.build_instrument(instrument, "yfinance", rows(("2026-10-05", 100), ("2026-10-06", 110)), None, moment("2026-10-06T19:59:59Z"), sessions)
+            self.assertEqual(quote["asOf"], "2026-10-05T20:00:00.000Z")
+            self.assertEqual(quote["unit"], "points")
+            self.assertEqual(history[-1]["priceBasis"], "unadjusted")
+            self.assertIn(symbol.replace("^", "%5E"), quote["sourceUrl"])
+
     def test_calendar_failure_isolated_to_korea_and_one_schedule_built_per_market(self):
         seen = []
         def schedule(market, now):
@@ -275,7 +287,7 @@ class DailyEquityTests(unittest.TestCase):
         with patch.object(collector, "exchange_sessions", schedule), redirect_stderr(io.StringIO()):
             result = collector.collect("yfinance", fetch=fetch, clock=lambda: moment("2026-06-08T23:00:00Z"))
         self.assertEqual(seen, ["us", "hk", "kr", "jp"])
-        self.assertEqual(len(result["quotes"]), 7)
+        self.assertEqual(len(result["quotes"]), len(collector.INSTRUMENTS["yfinance"]) - 1)
         self.assertEqual([error["instrumentId"] for error in result["errors"]], ["kr-kospi"])
 
 

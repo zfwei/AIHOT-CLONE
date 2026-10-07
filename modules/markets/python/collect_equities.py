@@ -39,6 +39,8 @@ INSTRUMENTS = {
     "yfinance": (
         {"id": "us-sp500", "symbol": "^GSPC", "stock": False, "market": "us"},
         {"id": "us-nasdaq100", "symbol": "^NDX", "stock": False, "market": "us"},
+        {"id": "us-russell2000", "symbol": "^RUT", "stock": False, "market": "us"},
+        {"id": "us-sox", "symbol": "^SOX", "stock": False, "market": "us"},
         {"id": "aapl", "symbol": "AAPL", "stock": True, "market": "us"},
         {"id": "msft", "symbol": "MSFT", "stock": True, "market": "us"},
         {"id": "nvda", "symbol": "NVDA", "stock": True, "market": "us"},

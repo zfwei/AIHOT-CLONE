@@ -41,7 +41,7 @@ AIQUANT 的实际数据接入见 [信源与覆盖](market-sources.md)。先在�
 - 海外信源抓不到时，在 `.env` 里设置 `EGRESS_PROXY_URL`：抓信源和图片时走这个代理，调用模型接口不走。
 - 对外提供网站服务需要先完成 ICP 备案，备案号填在 `site/site.ts` 的 `icp`。
 
-AKShare、yfinance 当前未取得正式的公开展示或再分发授权，不能因完成服务器部署就推定可以向公众提供这些行情。来源条款与十一个标的的范围见[股票日线说明](market-sources.md#股票与指数日线本地个人研究)。
+AKShare、yfinance 当前未取得正式的公开展示或再分发授权，不能因完成服务器部署就推定可以向公众提供这些行情。来源条款与十三个标的的范围见[股票日线说明](market-sources.md#股票与指数日线本地个人研究)。
 
 ### 配域名和 HTTPS
 
@@ -190,7 +190,7 @@ MARKET_PYTHON=/absolute/path/to/project/.data/markets-venv/bin/python
 
 未设置时默认执行 `python3`，该解释器也必须已安装上述依赖。变量值只填可执行文件路径，不加命令参数。修改后重启 worker；虚拟环境位于 `.data/`，不要提交到版本库。Docker 使用镜像内置环境。
 
-运行 worker 并显式设置 `COLLECT_ENABLED=true` 后，A 股 3 个标的与美股 5 个标的在北京时间每日 08:00、18:00 采集，也可在后台市场页单次触发。行情使用未复权收盘值，股票历史复权、指数历史不复权；每次刷新最近一年、最多 260 个交易日的完整窗口，仅保存已收盘日期，以采集时刻记录保守可用时间。具体来源、时间与使用范围见[信源与覆盖](market-sources.md)。
+运行 worker 并显式设置 `COLLECT_ENABLED=true` 后，A 股 3 个标的由 AKShare 采集，美股 7 个及港、韩、日各 1 个标的由 yfinance 采集，共 13 个，在北京时间每日 08:00、18:00 更新，也可在后台市场页单次触发。美股包含新增的[罗素 2000（`^RUT`）](https://finance.yahoo.com/quote/%5ERUT/)与[费城半导体指数（`^SOX`）](https://finance.yahoo.com/quote/%5ESOX/)。行情使用未复权收盘值，股票历史复权、指数历史不复权；每次刷新最近一年、最多 260 个交易日的完整窗口，仅保存已收盘日期，以采集时刻记录保守可用时间。具体来源、时间与使用范围见[信源与覆盖](market-sources.md)。
 
 ### 启动本机服务
 

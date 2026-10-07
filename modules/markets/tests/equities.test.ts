@@ -47,6 +47,17 @@ test("equity parser rejects unexpected instruments, detached series, duplicate d
   assert.throws(() => parseEquityResult({ quotes: [], history: [], errors: [{ instrumentId: "aapl", message: "Fixture failure" }] }, "yfinance", NOW), /No yfinance data collected/);
 });
 
+test("Russell 2000 and semiconductor indices keep index units and unadjusted history", () => {
+  for (const instrumentId of ["us-russell2000", "us-sox"]) {
+    const q = quote({ instrumentId, unit: "points", value: 3000, previousClose: 2990 });
+    const h = bar("2020-01-06", 3000, { instrumentId, priceBasis: "unadjusted" });
+    const result = parseEquityResult({ quotes: [q], history: [h], errors: [] }, "yfinance", NOW);
+    assert.equal(result.quotes[0]!.instrumentId, instrumentId);
+    assert.throws(() => parseEquityResult({ quotes: [{ ...q, unit: "price" }], history: [h], errors: [] }, "yfinance", NOW), /Wrong unit/);
+    assert.throws(() => parseEquityResult({ quotes: [q], history: [{ ...h, priceBasis: "adjusted" }], errors: [] }, "yfinance", NOW));
+  }
+});
+
 test("Asian equity indices accept points and unadjusted histories with their own close times", () => {
   for (const [instrumentId, asOf] of [["hk-hsi", "2020-01-06T08:00:00Z"], ["kr-kospi", "2020-01-06T06:30:00Z"], ["jp-nikkei225", "2020-01-06T06:00:00Z"]]) {
     const q = quote({ instrumentId, asOf, unit: "points", value: 3000, previousClose: 2990 });

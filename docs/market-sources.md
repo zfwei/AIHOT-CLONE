@@ -50,15 +50,17 @@ AIQUANT 的新闻、利率与宏观数据使用已由站点所有者确认的官
 
 ## 股票与指数日线：本地个人研究
 
-股票采集通过 worker 启动 Python 子进程，使用 [AKShare 股票文档](https://akshare.akfamily.xyz/data/stock/stock.html)及 [yfinance 官方项目](https://github.com/ranaroussi/yfinance)所述接口；Python 环境配置见[部署说明](deploy.md#股票日线的-python-环境)。范围固定为以下十一个标的，并非全市场覆盖。
+股票采集通过 worker 启动 Python 子进程，使用 [AKShare 股票文档](https://akshare.akfamily.xyz/data/stock/stock.html)及 [yfinance 官方项目](https://github.com/ranaroussi/yfinance)所述接口；Python 环境配置见[部署说明](deploy.md#股票日线的-python-环境)。范围固定为以下十三个标的：AKShare 3 个、yfinance 10 个，并非全市场覆盖。
 
 | 采集工具 | 市场 | 标的 |
 | --- | --- | --- |
 | AKShare | A 股，3 个 | 上证综指、沪深 300、贵州茅台（600519） |
-| yfinance / Yahoo Finance | 美股，5 个 | 标普 500（`^GSPC`）、纳斯达克 100（`^NDX`）、AAPL、MSFT、NVDA |
+| yfinance / Yahoo Finance | 美股，7 个 | 标普 500（`^GSPC`）、纳斯达克 100（`^NDX`）、罗素 2000（`^RUT`）、费城半导体指数（`^SOX`）、AAPL、MSFT、NVDA |
 | yfinance / Yahoo Finance | 港股，1 个 | 恒生指数（`^HSI`） |
 | yfinance / Yahoo Finance | 韩股，1 个 | KOSPI（`^KS11`） |
 | yfinance / Yahoo Finance | 日股，1 个 | 日经 225（`^N225`） |
+
+新增两个指数的代码已核对 Yahoo Finance：[Russell 2000 Index（`^RUT`）](https://finance.yahoo.com/quote/%5ERUT/)、[PHLX Semiconductor（`^SOX`）](https://finance.yahoo.com/quote/%5ESOX/)。指数编制方名称分别为 [FTSE Russell 的 Russell 2000 Index](https://www.lseg.com/en/ftse-russell/indices/russell-2000-index)和 [Nasdaq 的 PHLX Semiconductor Sector Index](https://indexes.nasdaq.com/index/Overview/SOX)；日线仍通过 yfinance / Yahoo Finance 获取。
 
 展示的最新行情及前收盘价采用未复权日线收盘值；用于均线观察的股票历史采用复权价格：AKShare 使用前复权 `qfq`，yfinance 读取 `auto_adjust=False` 返回的 `Adj Close`。指数历史保持未复权并标记 `priceBasis: "unadjusted"`。两种口径用途不同，不能把复权历史值当成当日可成交报价。每次请求最近一年，并保留每个标的最多 260 个交易日；成功取得一个标的的新历史后，整体替换该标的历史窗口，避免公司行动导致新旧复权基准混在同一序列中。至少 61 个有效观测值才进入现有 20/60 均线观察。
 
@@ -70,7 +72,7 @@ AIQUANT 的新闻、利率与宏观数据使用已由站点所有者确认的官
 
 使用范围遵循来源条款：[AKShare 项目概览](https://akshare.akfamily.xyz/introduction.html)说明接口及相关数据用于学术研究；[yfinance 官方 README](https://github.com/ranaroussi/yfinance#important)说明它并非 Yahoo 官方认可的产品，并提醒 Yahoo Finance API 仅供个人使用。开源工具的代码许可不等于所取金融数据的许可。本次接入限本地个人研究，尚未取得正式的商业、公开网站展示或 API/RSS/MCP 再分发授权；对外运营前需另行确认适用许可与供应商方案。
 
-2026-10-06 本机实测：11 个股票与指数标的均采集成功，其中 yfinance 覆盖 8 个，包含新增恒生、KOSPI 与日经 225 指数。合并官方债券行情后，市场快照共 17 条行情、2,728 条历史记录（含股票、指数和国债）。原有 A 股最近交易日为 2026-09-30，美股为 2026-10-05；每个标的均有足够历史进入均线观察。A 股统一使用 AKShare 新浪日线入口；东方财富个股入口在本机连接失败，因此未作为当前采集入口。此记录只说明当次结果，不保证上游持续可用。
+2026-10-06 本机实测（加入罗素 2000 与费城半导体指数前）：当时 11 个股票与指数标的均采集成功，其中 yfinance 覆盖 8 个，包含新增恒生、KOSPI 与日经 225 指数。合并官方债券行情后，市场快照共 17 条行情、2,728 条历史记录（含股票、指数和国债）。原有 A 股最近交易日为 2026-09-30，美股为 2026-10-05；每个标的均有足够历史进入均线观察。A 股统一使用 AKShare 新浪日线入口；东方财富个股入口在本机连接失败，因此未作为当前采集入口。此记录只说明当次结果，不保证上游持续可用。
 
 ## 其他来源边界
 
